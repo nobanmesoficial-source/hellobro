@@ -182,6 +182,7 @@ app.post('/api/v1/panic-mode', async (req, res) => {
 io.on('connection', (socket) => {
   const token = socket.handshake.query.token;
   if (!token) {
+    socket.emit('auth_error', { message: 'Токен не предоставлен' });
     socket.disconnect();
     return;
   }
@@ -207,8 +208,8 @@ io.on('connection', (socket) => {
           socket.join('staff_room');
         }
       }
-    }).catch(() => {
-      socket.disconnect();
+    }).catch((err) => {
+      console.warn('Socket init error:', err.message);
     });
 
     socket.on('join_chat', ({ chat_id }) => {
@@ -470,6 +471,7 @@ io.on('connection', (socket) => {
     });
 
   } catch (e) {
+    socket.emit('auth_error', { message: 'Неверный или просроченный токен' });
     socket.disconnect();
   }
 });
