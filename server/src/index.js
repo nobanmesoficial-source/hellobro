@@ -198,10 +198,8 @@ io.on('connection', (socket) => {
       socket.data.userId = userId;
 
       socket.broadcast.emit('user_online', { user_id: userId });
-    });
 
-    // Присоединение к комнате персонала (для уведомлений о нарушениях)
-    getDb().then(db => {
+      // Присоединение к комнате персонала (для уведомлений о нарушениях)
       const userRes = dbExecBind('SELECT is_admin, is_moderator, is_operation_manager FROM users WHERE id = ?', [userId]);
       if (userRes.length > 0 && userRes[0].values.length > 0) {
         const u = userRes[0].values[0];
@@ -209,7 +207,9 @@ io.on('connection', (socket) => {
           socket.join('staff_room');
         }
       }
-    }).catch(() => {});
+    }).catch(() => {
+      socket.disconnect();
+    });
 
     socket.on('join_chat', ({ chat_id }) => {
       socket.join(`chat:${chat_id}`);
