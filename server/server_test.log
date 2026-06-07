@@ -1,0 +1,33 @@
+🚀 Hello Bro Server running on port 8001
+📡 WebSocket: ws://0.0.0.0:8001/ws
+🌍 Health: http://0.0.0.0:8001/health
+⏰ Scheduled messages worker started
+🗑️ Self-destruct worker started
+✅ Table created: sticker_packs
+✅ Table created: stickers
+✅ Table created: polls
+✅ Table created: poll_options
+✅ Table created: poll_votes
+✅ Table created: violations
+✅ Table created: violation_messages
+✅ Table created: moderation_rules
+✅ Table created: broadcast_templates
+✅ Table created: staff_action_log
+✅ Migration applied: users.is_operation_manager
+✅ Migration applied: users.is_immune
+✅ Migration applied: users.recovery_code
+✅ Migration applied: users.recovery_code_expires
+✅ Seeded 33 moderation rules
+✅ Seed data inserted (operation manager user)
+✅ Seeded broadcast templates
+✅ Seeded 4 sticker packs
+✅ Table created: sticker_packs
+✅ Table created: stickers
+✅ Table created: polls
+✅ Table created: poll_options
+✅ Table created: poll_votes
+✅ Table created: violations
+✅ Table created: violation_messages
+✅ Table created: moderation_rules
+✅ Table created: broadcast_templates
+✅ Table created: staff_action_log
