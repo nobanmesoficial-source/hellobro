@@ -13,6 +13,19 @@ function rowToObject(result) {
   return obj;
 }
 
+router.get('/version', async (req, res) => {
+  return res.json({
+    success: true,
+    data: {
+      version: '1.0.0',
+      android_version: '1.0.0',
+      android_apk_url: '/uploads/hello_bro_v1.0.0.apk',
+      release_notes: 'Initial release',
+      server_time: new Date().toISOString(),
+    }
+  });
+});
+
 router.get('/status', authMiddleware, async (req, res) => {
   const db = await getDb();
   const activeUsers = rowToObject(db.exec('SELECT COUNT(*) as cnt FROM users WHERE is_online = 1'));
