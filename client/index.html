@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello Bro</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body data-theme="dark">
+
+  <!-- ЭКРАН ВХОДА -->
+  <div id="login-screen" class="screen active">
+    <div class="login-container">
+      <div class="login-logo">
+        <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+        <h1>Hello Bro</h1>
+        <p>Hello Bro</p>
+      </div>
+      <form id="login-form" class="login-form">
+        <div class="input-group">
+          <i class="fas fa-user"></i>
+          <input type="text" id="username-input" placeholder="Имя пользователя" required minlength="2" maxlength="20" autocomplete="off">
+        </div>
+        <div class="input-group">
+          <i class="fas fa-id-card"></i>
+          <input type="text" id="displayname-input" placeholder="Отображаемое имя (необязательно)" maxlength="30" autocomplete="off">
+        </div>
+        <button type="submit" class="btn-primary"><i class="fas fa-arrow-right"></i> Войти в Hello Bro</button>
+      </form>
+      <div class="login-hints">
+        <p>💡 <strong>Ctrl+K</strong> — поиск | <strong>Ctrl+B</strong> — жирный | <strong>Ctrl+I</strong> — курсив</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ГЛАВНЫЙ ЭКРАН -->
+  <div id="main-screen" class="screen">
+    <div class="app-container">
+
+      <!-- САЙДБАР -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo-small"><i class="fas fa-bolt"></i><span>Hello Bro</span></div>
+          <div class="sidebar-header-btns">
+            <button class="btn-icon" onclick="app.toggleTheme()" title="Сменить тему"><i class="fas fa-moon"></i></button>
+            <button class="btn-icon" id="btn-new-group" title="Создать группу"><i class="fas fa-plus"></i></button>
+          </div>
+        </div>
+
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" id="search-input" placeholder="Поиск сообщений... (Ctrl+K)">
+        </div>
+
+        <div class="search-results" id="search-results" style="display:none">
+          <div class="search-results-header">
+            <span>Результаты</span>
+            <button class="btn-icon btn-small" id="btn-close-search"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="search-results-list" id="search-results-list"></div>
+        </div>
+
+        <div class="chat-list" id="chat-list"></div>
+
+        <div class="sidebar-footer">
+          <div class="user-profile" onclick="app.showMyProfile()" style="cursor:pointer">
+            <div class="avatar-small" id="my-avatar"><i class="fas fa-user"></i></div>
+            <div class="user-info">
+              <span class="username" id="my-name">Пользователь</span>
+              <span class="status-text" id="my-status">В сети</span>
+            </div>
+          </div>
+          <button class="btn-icon" onclick="app.showQRLogin()" title="QR-вход"><i class="fas fa-qrcode"></i></button>
+          <button class="btn-icon" onclick="app.showMyProfile()" title="Настройки"><i class="fas fa-cog"></i></button>
+        </div>
+      </aside>
+
+      <!-- ОБЛАСТЬ ЧАТА -->
+      <main class="chat-area">
+        <header class="chat-header">
+          <div class="chat-info">
+            <button class="btn-icon mobile-back-btn" onclick="app.toggleSidebar()" title="Назад"><i class="fas fa-arrow-left"></i></button>
+            <div class="avatar-medium"><i class="fas fa-comments"></i></div>
+            <div>
+              <h3 id="chat-name">💬 Общий чат</h3>
+              <span class="chat-subtitle" id="chat-subtitle">Выберите чат</span>
+            </div>
+          </div>
+          <div class="chat-actions">
+            <button class="btn-icon" onclick="app.showPollModal()" title="Опрос"><i class="fas fa-poll"></i></button>
+            <button class="btn-icon" onclick="app.showGamesMenu()" title="Игры"><i class="fas fa-gamepad"></i></button>
+            <button class="btn-icon" onclick="app.showStats()" title="Статистика"><i class="fas fa-chart-bar"></i></button>
+            <button class="btn-icon" onclick="app.getInviteLink()" title="Пригласить"><i class="fas fa-link"></i></button>
+            <button class="btn-icon" onclick="app.clearChat()" title="Очистить"><i class="fas fa-broom"></i></button>
+            <button class="btn-icon btn-danger" onclick="app.deleteRoom()" title="Удалить"><i class="fas fa-trash"></i></button>
+          </div>
+        </header>
+
+        <!-- Закреплённое -->
+        <div class="pinned-bar" id="pinned-bar" style="display:none">
+          <i class="fas fa-thumbtack"></i>
+          <div class="pinned-info">
+            <span class="pinned-sender" id="pinned-sender"></span>
+            <span class="pinned-text" id="pinned-text"></span>
+          </div>
+        </div>
+
+        <div class="messages-container" id="messages-container">
+          <div class="messages-list" id="messages-list"></div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator" style="display:none">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+          <span class="typing-text" id="typing-text">печатает...</span>
+        </div>
+
+        <footer class="message-input-area">
+          <div class="reply-preview" id="reply-preview" style="display:none">
+            <div class="reply-content"><i class="fas fa-reply"></i><span id="reply-text"></span></div>
+            <button class="btn-icon btn-small" id="btn-cancel-reply"><i class="fas fa-times"></i></button>
+          </div>
+
+          <div class="input-row">
+            <button class="btn-icon" id="btn-attach" title="Файл"><i class="fas fa-paperclip"></i></button>
+            <input type="file" id="file-input" hidden>
+            <button class="btn-icon" id="btn-voice" title="Голосовое"><i class="fas fa-microphone"></i></button>
+            <button class="btn-icon" id="btn-video-circle" onclick="app.startVideoCircle()" title="Видеокружок"><i class="fas fa-circle"></i></button>
+
+            <div class="message-input-wrapper">
+              <textarea id="message-input" placeholder="Сообщение... (**жирный** *курсив* `код`)" rows="1" maxlength="5000"></textarea>
+            </div>
+
+            <div class="voice-recording" id="voice-recording" style="display:none">
+              <div class="recording-dot"></div>
+              <span class="recording-time" id="recording-time">0:00</span>
+              <button class="btn-icon btn-danger" id="btn-cancel-voice" title="Отмена"><i class="fas fa-times"></i></button>
+              <button class="btn-icon btn-success" id="btn-send-voice" title="Отправить"><i class="fas fa-check"></i></button>
+            </div>
+
+            <!-- Исчезающие -->
+            <select id="expire-select" class="expire-select" title="Исчезающее сообщение">
+              <option value="0">💬</option>
+              <option value="1">1м</option>
+              <option value="5">5м</option>
+              <option value="30">30м</option>
+              <option value="60">1ч</option>
+              <option value="1440">24ч</option>
+            </select>
+
+            <div class="sound-selector">
+              <button class="btn-icon btn-sound" id="btn-sound" title="Звук"><i class="fas fa-music"></i></button>
+              <div class="sound-dropdown" id="sound-dropdown">
+                <div class="sound-dropdown-header"><i class="fas fa-music"></i> Звук отправки</div>
+                <div class="sound-option active" data-sound="default"><i class="fas fa-bell"></i><span>Обычный</span><button class="btn-play" data-sound="default"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="birthday"><i class="fas fa-birthday-cake"></i><span>День рождения 🎂</span><button class="btn-play" data-sound="birthday"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="funny"><i class="fas fa-laugh-squint"></i><span>Смешной 😂</span><button class="btn-play" data-sound="funny"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="urgent"><i class="fas fa-exclamation-triangle"></i><span>Срочно! 🚨</span><button class="btn-play" data-sound="urgent"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="romantic"><i class="fas fa-heart"></i><span>Романтика ❤️</span><button class="btn-play" data-sound="romantic"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="applause"><i class="fas fa-hands-clapping"></i><span>Аплодисменты 👏</span><button class="btn-play" data-sound="applause"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="victory"><i class="fas fa-trophy"></i><span>Победа 🏆</span><button class="btn-play" data-sound="victory"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="magic"><i class="fas fa-wand-magic-sparkles"></i><span>Магия ✨</span><button class="btn-play" data-sound="magic"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="scary"><i class="fas fa-ghost"></i><span>Страшный 👻</span><button class="btn-play" data-sound="scary"><i class="fas fa-play"></i></button></div>
+                <div class="sound-option" data-sound="none"><i class="fas fa-volume-mute"></i><span>Без звука 🔇</span><button class="btn-play" data-sound="none"><i class="fas fa-play"></i></button></div>
+              </div>
+            </div>
+
+            <button class="btn-icon" id="btn-emoji" title="Эмодзи"><i class="fas fa-smile"></i></button>
+            <div class="emoji-picker" id="emoji-picker" style="display:none"><div class="emoji-grid"></div></div>
+
+            <button class="btn-send" id="btn-send" title="Отправить"><i class="fas fa-paper-plane"></i></button>
+          </div>
+        </footer>
+      </main>
+
+      <!-- ПАНЕЛЬ ПОЛЬЗОВАТЕЛЕЙ -->
+      <aside class="users-panel" id="users-panel">
+        <div class="panel-header"><h3>👥 Участники</h3></div>
+        <div class="users-list" id="users-list"></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА ГРУППЫ -->
+  <div class="modal" id="modal-new-group" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header"><h3><i class="fas fa-users"></i> Новая группа</h3><button class="btn-icon" id="btn-close-modal"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body">
+        <div class="input-group"><i class="fas fa-edit"></i><input type="text" id="group-name-input" placeholder="Название"></div>
+        <div class="input-group"><i class="fas fa-align-left"></i><input type="text" id="group-desc" placeholder="Описание (необязательно)"></div>
+        <label class="checkbox-label"><input type="checkbox" id="group-secret"> 🔒 Секретная группа (вход по паролю)</label>
+        <div class="input-group" id="group-password-wrap" style="display:none"><i class="fas fa-lock"></i><input type="text" id="group-password" placeholder="Пароль группы"></div>
+        <p class="modal-hint">Участники:</p>
+        <div class="members-select" id="members-select"></div>
+      </div>
+      <div class="modal-footer"><button class="btn-secondary" id="btn-cancel-group">Отмена</button><button class="btn-primary" id="btn-create-group">Создать</button></div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА ПРОФИЛЯ -->
+  <div class="modal" id="modal-profile" style="display:none">
+    <div class="modal-content modal-profile-large">
+      <div class="modal-header"><h3><i class="fas fa-user-circle"></i> Мой профиль</h3><button class="btn-icon" onclick="document.getElementById('modal-profile').style.display='none'"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body profile-modal-body">
+        <div class="profile-avatar-large" id="profile-avatar-large">A</div>
+        <input type="file" id="avatar-file-input" accept="image/*" hidden>
+
+        <p class="section-label">Цвет аватарки</p>
+        <div class="profile-color-picker">
+          <span class="color-dot" style="background:#7c3aed" onclick="app.setAvatarColor('#7c3aed')"></span>
+          <span class="color-dot" style="background:#3b82f6" onclick="app.setAvatarColor('#3b82f6')"></span>
+          <span class="color-dot" style="background:#a78bfa" onclick="app.setAvatarColor('#a78bfa')"></span>
+          <span class="color-dot" style="background:#1d4ed8" onclick="app.setAvatarColor('#1d4ed8')"></span>
+          <span class="color-dot" style="background:#6d28d9" onclick="app.setAvatarColor('#6d28d9')"></span>
+          <span class="color-dot" style="background:#60a5fa" onclick="app.setAvatarColor('#60a5fa')"></span>
+          <span class="color-dot" style="background:#c084fc" onclick="app.setAvatarColor('#c084fc')"></span>
+          <span class="color-dot" style="background:#2563eb" onclick="app.setAvatarColor('#2563eb')"></span>
+          <span class="color-dot" style="background:#4c1d95" onclick="app.setAvatarColor('#4c1d95')"></span>
+          <span class="color-dot" style="background:#93c5fd" onclick="app.setAvatarColor('#93c5fd')"></span>
+          <span class="color-dot" style="background:#ddd6fe" onclick="app.setAvatarColor('#ddd6fe')"></span>
+          <span class="color-dot" style="background:#1e1b4b" onclick="app.setAvatarColor('#1e1b4b')"></span>
+        </div>
+
+        <p class="section-label">Аватарка</p>
+        <div class="avatar-emoji-grid" id="avatar-emoji-grid"></div>
+
+        <div class="input-group"><i class="fas fa-user"></i><input type="text" id="profile-displayname" placeholder="Имя"></div>
+        <div class="input-group"><i class="fas fa-comment"></i><input type="text" id="profile-status" placeholder="Статус"></div>
+        <div class="input-group"><i class="fas fa-info-circle"></i><input type="text" id="profile-bio" placeholder="О себе" maxlength="150"></div>
+
+        <p class="section-label">Статус активности</p>
+        <div class="activity-picker" id="activity-picker"></div>
+
+        <p class="section-label">Фон чата</p>
+        <div class="bg-picker-grid" id="bg-picker-grid"></div>
+
+        <p class="section-label">Приватность</p>
+        <div class="privacy-options">
+          <label class="checkbox-label"><input type="checkbox" id="profile-invisible"> 👻 Невидимка (скрыть онлайн)</label>
+          <label class="checkbox-label"><input type="checkbox" id="profile-dnd"> 🔕 Не беспокоить</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="document.getElementById('modal-profile').style.display='none'">Отмена</button>
+        <button class="btn-primary" onclick="app.saveProfile()"><i class="fas fa-check"></i> Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- УВЕДОМЛЕНИЕ -->
+  <div class="sound-notification" id="sound-notification" style="display:none">
+    <div class="sound-notif-content"><i class="fas fa-bell"></i><span id="sound-notif-text"></span></div>
+  </div>
+
+  <!-- МОДАЛКА ВИДЕО-КРУЖКА -->
+  <div class="modal" id="modal-video-circle" style="display:none">
+    <div class="modal-content vc-modal">
+      <div class="modal-header"><h3><i class="fas fa-circle"></i> Видеокружок</h3><button class="btn-icon" onclick="app.closeVideoCircle()"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body">
+        <div class="vc-preview-wrap"><video id="video-circle-preview" muted playsinline></video></div>
+        <div class="vc-timer" id="vc-timer">0</div>
+        <div class="vc-btns">
+          <button class="btn-primary" onclick="app.stopVideoCircle()" style="width:auto"><i class="fas fa-stop"></i> Отправить</button>
+          <button class="btn-secondary" onclick="app.closeVideoCircle()">Отмена</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА QR -->
+  <div class="modal" id="modal-qr" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header"><h3><i class="fas fa-qrcode"></i> Войти через QR</h3><button class="btn-icon" onclick="document.getElementById('modal-qr').style.display='none'"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body qr-modal-body">
+        <p style="color:var(--text-secondary);margin-bottom:8px">Отсканируй QR-код приложением Hello Bro на Android</p>
+        <div id="qr-code-container"></div>
+        <div id="qr-status">Ожидание сканирования...</div>
+        <button class="btn-primary" id="qr-confirm-btn" style="display:none;width:auto;margin:8px auto" onclick="app.socket.emit('qr:confirm',{sessionId:this.dataset.sessionId})"><i class="fas fa-check"></i> Подтвердить</button>
+        <input type="hidden" id="qr-token">
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА ЗВОНКА -->
+  <div class="modal call-modal" id="modal-call" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header"><h3><i class="fas fa-phone"></i> Звонок</h3></div>
+      <div class="modal-body">
+        <div class="call-container">
+          <div class="call-videos">
+            <div class="call-remote-wrap"><video id="call-remote-video" autoplay playsinline></video></div>
+            <div class="call-local-wrap"><video id="call-local-video" autoplay playsinline muted></video></div>
+          </div>
+          <div id="call-status">Соединение...</div>
+          <div class="call-btns">
+            <button class="call-btn call-btn-mute" onclick="this.classList.toggle('active');if(app._pc){app._pc.getSenders().forEach(s=>{if(s.track.kind==='audio')s.track.enabled=!this.classList.contains('active')})}" title="Микрофон"><i class="fas fa-microphone"></i></button>
+            <button class="call-btn call-btn-end" onclick="app.endCall()" title="Завершить"><i class="fas fa-phone-slash"></i></button>
+            <button class="call-btn call-btn-video" id="btn-toggle-video" onclick="this.classList.toggle('active');if(app._pc){app._pc.getSenders().forEach(s=>{if(s.track.kind==='video')s.track.enabled=!this.classList.contains('active')})}" title="Видео"><i class="fas fa-video"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('group-secret')?.addEventListener('change', (e) => {
+      document.getElementById('group-password-wrap').style.display = e.target.checked ? 'block' : 'none';
+    });
+  </script>
+</body>
+</html>
