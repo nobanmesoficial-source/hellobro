@@ -631,6 +631,7 @@ function runMigrations() {
     { name: 'is_immune', sql: "ALTER TABLE users ADD COLUMN is_immune INTEGER DEFAULT 0" },
     { name: 'recovery_code', sql: "ALTER TABLE users ADD COLUMN recovery_code TEXT" },
     { name: 'recovery_code_expires', sql: "ALTER TABLE users ADD COLUMN recovery_code_expires TEXT" },
+    { name: 'password_hash', sql: "ALTER TABLE users ADD COLUMN password_hash TEXT" },
   ];
   for (const m of userModMigrations) {
     if (!userColNames3.includes(m.name)) {

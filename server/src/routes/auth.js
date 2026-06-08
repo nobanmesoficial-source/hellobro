@@ -1,5 +1,6 @@
 const express = require('express');
-const { getDb, dbExecBind } = require('../db');
+const bcrypt = require('bcryptjs');
+const { getDb, dbExecBind, lastInsertId, saveDb } = require('../db');
 const { generateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -20,9 +21,13 @@ function normalizePhone(phone) {
 
 router.post('/register', async (req, res) => {
   try {
-    const { phone, username, display_name } = req.body;
-    if (!phone || !username || !display_name) {
+    const { phone, username, display_name, password } = req.body;
+    if (!phone || !username || !display_name || !password) {
       return res.json({ success: false, message: 'Заполните все поля' });
+    }
+
+    if (password.length < 6) {
+      return res.json({ success: false, message: 'Пароль должен быть минимум 6 символов' });
     }
 
     const cleanedPhone = normalizePhone(phone);
@@ -41,13 +46,12 @@ router.post('/register', async (req, res) => {
       return res.json({ success: false, message: 'Этот username уже занят' });
     }
 
-    db.run('INSERT INTO users (phone, username, display_name, is_online, last_seen) VALUES (?, ?, ?, 1, datetime(\'now\',\'localtime\'))',
-      [cleanedPhone, cleanUsername, display_name.trim()]);
+    const passwordHash = bcrypt.hashSync(password, 10);
 
-    const result = db.exec('SELECT last_insert_rowid() as id');
-    const userId = result[0].values[0][0];
+    db.run('INSERT INTO users (phone, username, display_name, password_hash, is_online, last_seen) VALUES (?, ?, ?, ?, 1, datetime(\'now\',\'localtime\'))',
+      [cleanedPhone, cleanUsername, display_name.trim(), passwordHash]);
 
-    const { saveDb } = require('../db');
+    const userId = lastInsertId();
     saveDb();
 
     const token = generateToken(userId);
@@ -74,9 +78,9 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) {
-      return res.json({ success: false, message: 'Введите номер телефона' });
+    const { phone, password } = req.body;
+    if (!phone || !password) {
+      return res.json({ success: false, message: 'Введите номер телефона и пароль' });
     }
 
     const cleanedPhone = normalizePhone(phone);
@@ -96,15 +100,13 @@ router.post('/login', async (req, res) => {
       return res.json({ success: false, message: 'Ваш аккаунт заблокирован' });
     }
 
-    if (user.twofa_enabled) {
-      return res.json({
-        success: true,
-        requires_2fa: true,
-        data: {
-          user_id: user.id,
-          requires_2fa: true,
-        },
-      });
+    if (!user.password_hash) {
+      return res.json({ success: false, message: 'Для аккаунта не установлен пароль. Используйте регистрацию.' });
+    }
+
+    const valid = bcrypt.compareSync(password, user.password_hash);
+    if (!valid) {
+      return res.json({ success: false, message: 'Неверный пароль' });
     }
 
     db.run('UPDATE users SET is_online = 1, last_seen = datetime(\'now\',\'localtime\') WHERE id = ?', [user.id]);
@@ -128,7 +130,6 @@ router.post('/login', async (req, res) => {
         is_admin: !!user.is_admin,
         is_moderator: !!user.is_moderator,
         is_blocked: !!user.is_blocked,
-        twofa_enabled: false,
         created_at: user.created_at,
       }
     });
@@ -152,6 +153,31 @@ router.post('/logout', async (req, res) => {
     return res.json({ success: true, data: { message: 'Выход выполнен' } });
   } catch (e) {
     return res.json({ success: false, message: 'Ошибка выхода' });
+  }
+});
+
+router.post('/check-password', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.json({ success: false, message: 'Введите пароль' });
+    }
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Требуется авторизация' });
+    }
+    const jwt = require('jsonwebtoken');
+    const { JWT_SECRET } = require('../middleware/auth');
+    const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+    const db = await getDb();
+    const result = dbExecBind('SELECT password_hash FROM users WHERE id = ?', [decoded.userId]);
+    if (result.length === 0 || result[0].values.length === 0) {
+      return res.json({ success: false, message: 'Пользователь не найден' });
+    }
+    const valid = bcrypt.compareSync(password, result[0].values[0][0]);
+    return res.json({ success: valid, message: valid ? 'Пароль верный' : 'Неверный пароль' });
+  } catch (e) {
+    return res.json({ success: false, message: 'Ошибка проверки пароля' });
   }
 });
 
