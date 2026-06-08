@@ -86,12 +86,16 @@ router.get('/users', authMiddleware, staffOnly, async (req, res) => {
   const users = rowsToArray(result);
 
   // Total
-  let countSql = 'SELECT COUNT(*) as cnt FROM users';
+  let total = { cnt: 0 };
   if (search) {
     const q = `%${search}%`;
-    countSql += ` WHERE phone LIKE '${q}' OR username LIKE '${q}' OR display_name LIKE '${q}'`;
+    total = rowToObject(dbExecBind(
+      "SELECT COUNT(*) as cnt FROM users WHERE phone LIKE ? OR username LIKE ? OR display_name LIKE ?",
+      [q, q, q]
+    ));
+  } else {
+    total = rowToObject(db.exec('SELECT COUNT(*) as cnt FROM users'));
   }
-  const total = rowToObject(db.exec(countSql));
 
   return res.json({ success: true, data: users, total: total ? total.cnt : 0 });
 });
@@ -309,9 +313,13 @@ router.get('/reports', authMiddleware, staffOnly, async (req, res) => {
     JOIN users reporter ON vr.reporter_id = reporter.id
     JOIN users target ON vr.target_id = target.id
   `;
-  if (status) sql += ` WHERE vr.status = '${status}'`;
+  const params = [];
+  if (status) {
+    sql += ' WHERE vr.status = ?';
+    params.push(status);
+  }
   sql += ' ORDER BY vr.created_at DESC';
-  const result = db.exec(sql);
+  const result = dbExecBind(sql, params);
   return res.json({ success: true, data: rowsToArray(result) });
 });
 

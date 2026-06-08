@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb, saveDb, rowToObject, rowsToArray, dbExecBind } = require('../db');
+const { getDb, saveDb, lastInsertId, rowToObject, rowsToArray, dbExecBind } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -45,7 +45,7 @@ router.post('/packs', authMiddleware, async (req, res) => {
     db.run('INSERT INTO sticker_packs (name, author_id, is_premium) VALUES (?, ?, ?)',
       [name || 'Unnamed Pack', req.user.id, is_premium ? 1 : 0]);
     saveDb();
-    const id = db.exec('SELECT last_insert_rowid() as id')[0].values[0][0];
+    const id = lastInsertId();
     const pack = rowToObject(dbExecBind('SELECT * FROM sticker_packs WHERE id = ?', [id]));
     return res.json({ success: true, data: pack });
   } catch (e) {
@@ -66,7 +66,7 @@ router.post('/packs/:id/stickers', authMiddleware, upload.single('sticker_file')
     db.run('INSERT INTO stickers (pack_id, file_url, emoji) VALUES (?, ?, ?)',
       [packId, fileUrl, emoji || '😀']);
     saveDb();
-    const id = db.exec('SELECT last_insert_rowid() as id')[0].values[0][0];
+    const id = lastInsertId();
     const sticker = rowToObject(dbExecBind('SELECT * FROM stickers WHERE id = ?', [id]));
     return res.json({ success: true, data: sticker });
   } catch (e) {

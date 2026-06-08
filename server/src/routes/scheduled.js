@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb, saveDb, rowToObject, rowsToArray, getMessageFull, dbExecBind } = require('../db');
+const { getDb, saveDb, lastInsertId, rowToObject, rowsToArray, getMessageFull, dbExecBind } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -55,8 +55,7 @@ router.post('/', authMiddleware, async (req, res) => {
       INSERT INTO scheduled_messages (chat_id, sender_id, message_type, content, media_url, reply_to, send_at, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
     `, [chatId, req.user.id, message_type || 'text', content || null, media_url || null, replyToId, sendAtStr]);
-    const idRes = db.exec('SELECT last_insert_rowid() as id');
-    const id = idRes[0].values[0][0];
+    const id = lastInsertId();
 
     saveDb();
 
@@ -110,13 +109,12 @@ function startScheduledWorker(io) {
             INSERT INTO messages (chat_id, sender_id, message_type, content, media_url, reply_to)
             VALUES (?, ?, ?, ?, ?, ?)
           `, [sched.chat_id, sched.sender_id, sched.message_type, sched.content, sched.media_url, sched.reply_to]);
-          const idRes = db.exec('SELECT last_insert_rowid() as id');
-          const newMsgId = idRes[0].values[0][0];
-          db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newMsgId, sched.sender_id, 'sent']);
+          const newMsgId = lastInsertId();
+          db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newMsgId, sched.sender_id, 'sent']);
           const others = dbExecBind('SELECT user_id FROM chat_participants WHERE chat_id = ? AND user_id != ?',
             [sched.chat_id, sched.sender_id]);
           for (const p of rowsToArray(others)) {
-            db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newMsgId, p.user_id, 'sent']);
+            db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newMsgId, p.user_id, 'sent']);
           }
           db.run("UPDATE scheduled_messages SET status = 'sent', sent_message_id = ? WHERE id = ?", [newMsgId, sched.id]);
           saveDb();

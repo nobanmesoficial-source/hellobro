@@ -5,7 +5,10 @@ const http = require('http');
 
 const router = express.Router();
 
-const GIPHY_API_KEY = process.env.GIPHY_API_KEY || 'GlVGYHkrB1w2Hvk2R0IKEYQtFo3y9kRF';
+if (!process.env.GIPHY_API_KEY) {
+  console.warn('WARNING: GIPHY_API_KEY not set — GIF search will fail at runtime');
+}
+const GIPHY_API_KEY = process.env.GIPHY_API_KEY;
 const GIPHY_API_BASE = 'https://api.giphy.com/v1/gifs';
 
 function giphyFetch(url) {

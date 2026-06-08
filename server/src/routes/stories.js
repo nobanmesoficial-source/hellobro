@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb, saveDb, dbExecBind } = require('../db');
+const { getDb, saveDb, dbExecBind, lastInsertId } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -74,9 +74,9 @@ router.post('/', authMiddleware, async (req, res) => {
     VALUES (?, ?, ?, ?, ?)
   `, [req.user.id, story_type, '/uploads/' + filename, duration || 24, visibility_settings || '{}']);
 
-  const idResult = db.exec('SELECT last_insert_rowid() as id');
+  const storyId = lastInsertId();
   saveDb();
-  return res.json({ success: true, data: { story_id: idResult[0].values[0][0] } });
+  return res.json({ success: true, data: { story_id: storyId } });
 });
 
 router.post('/:id/view', authMiddleware, async (req, res) => {

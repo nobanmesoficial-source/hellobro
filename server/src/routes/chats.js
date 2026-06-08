@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb, saveDb, rowToObject, rowsToArray, getChatFull, isUserChatAdmin, isUserChatOwner, isUserChatParticipant, generateInviteToken, dbExecBind } = require('../db');
+const { getDb, saveDb, lastInsertId, rowToObject, rowsToArray, getChatFull, isUserChatAdmin, isUserChatOwner, isUserChatParticipant, generateInviteToken, dbExecBind } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -83,8 +83,7 @@ router.post('/', authMiddleware, async (req, res) => {
     if (existing) return res.json({ success: true, data: { chat_id: existing.id, type: 'private' } });
 
     db.run("INSERT INTO chats (type) VALUES ('private')");
-    const idResult = db.exec('SELECT last_insert_rowid() as id');
-    const chatId = idResult[0].values[0][0];
+    const chatId = lastInsertId();
     db.run('INSERT INTO chat_participants (chat_id, user_id, role) VALUES (?, ?, ?)', [chatId, req.user.id, 'owner']);
     db.run('INSERT INTO chat_participants (chat_id, user_id, role) VALUES (?, ?, ?)', [chatId, target.id, 'member']);
     saveDb();
@@ -96,8 +95,7 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!name) return res.json({ success: false, message: 'Укажите название' });
     db.run('INSERT INTO chats (type, name, description, created_by) VALUES (?, ?, ?, ?)',
       [type, name, description || null, req.user.id]);
-    const idResult = db.exec('SELECT last_insert_rowid() as id');
-    const chatId = idResult[0].values[0][0];
+    const chatId = lastInsertId();
     db.run("INSERT INTO chat_participants (chat_id, user_id, role, can_add_members) VALUES (?, ?, 'owner', 1)", [chatId, req.user.id]);
     saveDb();
     return res.json({ success: true, data: { chat_id: chatId, type, name } });
@@ -355,8 +353,7 @@ router.post('/saved', authMiddleware, async (req, res) => {
     chatId = row[0];
   } else {
     db.run("INSERT INTO chats (type, name, is_saved, created_by) VALUES ('private', 'Избранное', 1, ?)", [userId]);
-    const idRes = db.exec('SELECT last_insert_rowid() as id');
-    chatId = idRes[0].values[0][0];
+    chatId = lastInsertId();
     db.run("INSERT INTO chat_participants (chat_id, user_id, role) VALUES (?, ?, 'owner')", [chatId, userId]);
     saveDb();
   }

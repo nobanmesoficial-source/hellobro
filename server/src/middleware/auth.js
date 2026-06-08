@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken');
 const { getDb, rowToObject, dbExecBind } = require('../db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'hello_bro_jwt_secret_2024';
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;

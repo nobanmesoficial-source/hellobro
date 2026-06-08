@@ -9,7 +9,7 @@ const pino = require('pino');
 const pinoHttp = require('pino-http');
 const promClient = require('prom-client');
 const NodeCache = require('node-cache');
-const { getDb, saveDb } = require('./db');
+const { getDb, saveDb, lastInsertId } = require('./db');
 const { JWT_SECRET } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -179,7 +179,7 @@ app.post('/api/v1/panic-mode', async (req, res) => {
 });
 
 // Socket.IO
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   const token = socket.handshake.query.token;
   if (!token) {
     socket.emit('auth_error', { message: 'Токен не предоставлен' });
@@ -191,26 +191,21 @@ io.on('connection', (socket) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const userId = decoded.userId;
 
-    getDb().then(db => {
-      db.run('UPDATE users SET is_online = 1, last_seen = datetime(\'now\',\'localtime\') WHERE id = ?', [userId]);
-      saveDb();
+    const db = await getDb();
+    db.run('UPDATE users SET is_online = 1, last_seen = datetime(\'now\',\'localtime\') WHERE id = ?', [userId]);
+    saveDb();
 
-      socket.join(`user:${userId}`);
-      socket.data.userId = userId;
+    socket.join(`user:${userId}`);
+    socket.data.userId = userId;
 
-      socket.broadcast.emit('user_online', { user_id: userId });
+    socket.broadcast.emit('user_online', { user_id: userId });
 
       // Присоединение к комнате персонала (для уведомлений о нарушениях)
       const userRes = dbExecBind('SELECT is_admin, is_moderator, is_operation_manager FROM users WHERE id = ?', [userId]);
-      if (userRes.length > 0 && userRes[0].values.length > 0) {
-        const u = userRes[0].values[0];
-        if (u[0] || u[1] || u[2]) {
-          socket.join('staff_room');
-        }
+      const staffUser = rowToObject(userRes);
+      if (staffUser && (staffUser.is_admin || staffUser.is_moderator || staffUser.is_operation_manager)) {
+        socket.join('staff_room');
       }
-    }).catch((err) => {
-      console.warn('Socket init error:', err.message);
-    });
 
     socket.on('join_chat', ({ chat_id }) => {
       socket.join(`chat:${chat_id}`);
@@ -231,13 +226,13 @@ io.on('connection', (socket) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [chat_id, userId, message_type || 'text', content || null, encrypted_content || null, session_key || null, sticker_id || null, duration || null, replyToId]);
 
-      const idResult = db.exec('SELECT last_insert_rowid() as id');
-      const messageId = idResult[0].values[0][0];
+      const messageId = lastInsertId();
+      if (!messageId) return;
 
-      db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, userId, 'sent']);
+      db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, userId, 'sent']);
       const others = dbExecBind('SELECT user_id FROM chat_participants WHERE chat_id = ? AND user_id != ?', [chat_id, userId]);
       for (const p of rowsToArray(others)) {
-        db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, p.user_id, 'sent']);
+        db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, p.user_id, 'sent']);
       }
       saveDb();
 
@@ -314,12 +309,12 @@ io.on('connection', (socket) => {
         db.run(`INSERT INTO messages (chat_id, sender_id, message_type, content, encrypted_content, media_url, sticker_id, duration, forwarded_from_chat_id, forwarded_from_user_id, forwarded_from_name)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [targetChatId, userId, src.message_type, src.content, src.encrypted_content, src.media_url, src.sticker_id, src.duration, src.chat_id, src.sender_id, src.sender_name]);
-        const idRes = db.exec('SELECT last_insert_rowid() as id');
-        const newId = idRes[0].values[0][0];
-        db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, userId, 'sent']);
+        const newId = lastInsertId();
+        if (!newId) continue;
+        db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, userId, 'sent']);
         const others = dbExecBind('SELECT user_id FROM chat_participants WHERE chat_id = ? AND user_id != ?', [targetChatId, userId]);
         for (const p of rowsToArray(others)) {
-          db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, p.user_id, 'sent']);
+          db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, p.user_id, 'sent']);
         }
         const m = getMessageFull(db, newId);
         if (m) created.push(m);
@@ -462,12 +457,15 @@ io.on('connection', (socket) => {
       });
     });
 
-    socket.on('disconnect', () => {
-      getDb().then(db => {
+    socket.on('disconnect', async () => {
+      try {
+        const db = await getDb();
         db.run('UPDATE users SET is_online = 0, last_seen = datetime(\'now\',\'localtime\') WHERE id = ?', [userId]);
         saveDb();
         socket.broadcast.emit('user_offline', { user_id: userId });
-      });
+      } catch (e) {
+        console.warn('Disconnect handler error:', e.message);
+      }
     });
 
   } catch (e) {

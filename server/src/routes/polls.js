@@ -143,7 +143,7 @@ router.delete('/:id/vote', authMiddleware, async (req, res) => {
   try {
     const db = await getDb();
     const pollId = parseInt(req.params.id);
-    const { option_id } = req.body;
+    const option_id = req.body?.option_id ?? req.query?.option_id;
     if (option_id) {
       db.run('DELETE FROM poll_votes WHERE poll_id = ? AND option_id = ? AND user_id = ?',
         [pollId, option_id, req.user.id]);

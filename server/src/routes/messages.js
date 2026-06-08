@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb, saveDb, rowToObject, rowsToArray, getMessageFull, dbExecBind } = require('../db');
+const { getDb, saveDb, lastInsertId, rowToObject, rowsToArray, getMessageFull, dbExecBind } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -34,10 +34,9 @@ router.post('/:chatId/messages', authMiddleware, upload.single('media_file'), as
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [parseInt(chatId), req.user.id, message_type || 'text', content || null, encrypted_content || null, session_key || null, mediaUrl, sticker_id || null, duration || null, replyToId]);
 
-    const idResult = db.exec('SELECT last_insert_rowid() as id');
-    const messageId = idResult[0].values[0][0];
+    const messageId = lastInsertId();
 
-    db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, req.user.id, 'sent']);
+    db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, req.user.id, 'sent']);
 
     const participantsResult = dbExecBind(
       'SELECT user_id FROM chat_participants WHERE chat_id = ? AND user_id != ?',
@@ -45,7 +44,7 @@ router.post('/:chatId/messages', authMiddleware, upload.single('media_file'), as
     );
     const participants = rowsToArray(participantsResult);
     for (const p of participants) {
-      db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, p.user_id, 'sent']);
+      db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [messageId, p.user_id, 'sent']);
     }
     saveDb();
 
@@ -272,15 +271,14 @@ router.post('/messages/forward', authMiddleware, async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [targetChatId, req.user.id, src.message_type, src.content, src.encrypted_content, src.media_url, src.sticker_id, src.duration,
           src.chat_id, src.sender_id, src.sender_name]);
-      const idRes = db.exec('SELECT last_insert_rowid() as id');
-      const newId = idRes[0].values[0][0];
+      const newId = lastInsertId();
       createdIds.push(newId);
-      db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, req.user.id, 'sent']);
+      db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, req.user.id, 'sent']);
 
       const otherParticipants = dbExecBind('SELECT user_id FROM chat_participants WHERE chat_id = ? AND user_id != ?',
         [targetChatId, req.user.id]);
       for (const p of rowsToArray(otherParticipants)) {
-        db.run('INSERT INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, p.user_id, 'sent']);
+        db.run('INSERT OR IGNORE INTO message_status (message_id, user_id, status) VALUES (?, ?, ?)', [newId, p.user_id, 'sent']);
       }
     }
     saveDb();
