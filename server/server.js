@@ -40,6 +40,8 @@ async function initDb() {
   }
   db.run(`CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY,
+    phone TEXT UNIQUE,
+    password TEXT,
     displayName TEXT,
     avatar TEXT,
     avatarColor TEXT DEFAULT '#7c3aed',
@@ -54,6 +56,8 @@ async function initDb() {
     theme TEXT DEFAULT 'dark',
     createdAt TEXT DEFAULT (datetime('now'))
   )`);
+  try { db.run(`ALTER TABLE users ADD COLUMN phone TEXT`); } catch(e) {}
+  try { db.run(`ALTER TABLE users ADD COLUMN password TEXT`); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS messages (
     messageId TEXT PRIMARY KEY,
     type TEXT DEFAULT 'text',
@@ -329,67 +333,92 @@ app.get('/invite/:code', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`🟢 ${socket.id}`);
 
+  socket.on('user:register', async (data) => {
+    try {
+      const { phone, username, displayName, password } = data;
+      if (!phone || !username || !password) {
+        socket.emit('auth:error', { text: 'Заполните все поля' }); return;
+      }
+      const existing = dbGet(`SELECT * FROM users WHERE phone = ? OR username = ?`, [phone, username]);
+      if (existing) {
+        socket.emit('auth:error', { text: existing.phone === phone ? 'Номер уже зарегистрирован' : 'Имя пользователя занято' });
+        return;
+      }
+      dbRun(`INSERT INTO users (username, phone, password, displayName, avatarColor, status, lastSeen) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+        [username, phone, password, displayName || username, getRandomColor(), 'online']);
+      const dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [username]);
+      proceedLogin(socket, dbUser);
+    } catch (err) { console.error('Register error:', err); socket.emit('auth:error', { text: 'Ошибка регистрации' }); }
+  });
+
   socket.on('user:join', async (userData) => {
     try {
-      let dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [userData.username]);
-      if (!dbUser) {
-        dbRun(`INSERT INTO users (username, displayName, avatarColor, status, lastSeen) VALUES (?, ?, ?, ?, datetime('now'))`,
-          [userData.username, userData.displayName || userData.username, getRandomColor(), 'online']);
-        dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [userData.username]);
+      const { phone, password } = userData;
+      let dbUser = null;
+      if (phone && password) {
+        dbUser = dbGet(`SELECT * FROM users WHERE phone = ? AND password = ?`, [phone, password]);
+        if (!dbUser) { socket.emit('auth:error', { text: 'Неверный номер или пароль' }); return; }
+      } else if (userData.username && userData.password) {
+        dbUser = dbGet(`SELECT * FROM users WHERE username = ? AND password = ?`, [userData.username, userData.password]);
+        if (!dbUser) { socket.emit('auth:error', { text: 'Неверный логин или пароль' }); return; }
       } else {
-        const invisible = !!dbUser.invisible;
-        dbRun(`UPDATE users SET status = ?, lastSeen = datetime('now')${userData.displayName ? ', displayName = ?' : ''} WHERE username = ?`,
-          invisible ? ['offline'] : ['online', userData.displayName, userData.username].filter(Boolean));
+        socket.emit('auth:error', { text: 'Введите номер и пароль' }); return;
       }
-
-      dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [userData.username]);
-      const user = formatUserRow(dbUser);
-      user.id = socket.id;
-      user.status = user.invisible ? 'offline' : 'online';
-
-      onlineUsers.set(socket.id, user);
-      if (!unreadCounts.has(user.username)) unreadCounts.set(user.username, {});
-
-      socket.join('general');
-
-      const generalRoom = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, ['general']);
-      if (generalRoom) {
-        const newMembers = addToSet(generalRoom.members, user.username);
-        dbRun(`UPDATE rooms SET members = ? WHERE roomId = ?`, [newMembers, 'general']);
-      }
-
-      const userRooms = dbAll(`SELECT * FROM rooms`);
-      const filteredRooms = userRooms.filter(r => {
-        const members = parseJsonField(r.members, []);
-        const banned = parseJsonField(r.banned, []);
-        return members.includes(user.username) || r.roomId === 'general';
-      }).filter(r => {
-        const banned = parseJsonField(r.banned, []);
-        return !banned.includes(user.username);
-      });
-
-      filteredRooms.forEach(r => socket.join(r.roomId));
-
-      const generalMsgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp DESC LIMIT 100`, ['general']);
-      const msgRows = generalMsgs.reverse().map(formatMessageRow);
-
-      socket.emit('user:joined', {
-        user,
-        rooms: filteredRooms.map(formatRoomRow),
-        messages: msgRows,
-        onlineUsers: getOnlineUsersList(),
-        unreadCounts: unreadCounts.get(user.username) || {}
-      });
-
-      if (!user.invisible) {
-        io.emit('users:update', getOnlineUsersList());
-        const sysMsg = await saveMessage({
-          type: 'system', content: `${user.displayName} присоединился к чату`, room: 'general'
-        });
-        io.to('general').emit('message:new', sysMsg);
-      }
+      proceedLogin(socket, dbUser);
     } catch (err) { console.error('Join error:', err); }
   });
+
+  async function proceedLogin(socket, dbUser) {
+    const invisible = !!dbUser.invisible;
+    dbRun(`UPDATE users SET status = ?, lastSeen = datetime('now') WHERE username = ?`,
+      [invisible ? 'offline' : 'online', dbUser.username]);
+    dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [dbUser.username]);
+    const user = formatUserRow(dbUser);
+    user.id = socket.id;
+    user.status = user.invisible ? 'offline' : 'online';
+
+    onlineUsers.set(socket.id, user);
+    if (!unreadCounts.has(user.username)) unreadCounts.set(user.username, {});
+
+    socket.join('general');
+
+    const generalRoom = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, ['general']);
+    if (generalRoom) {
+      const newMembers = addToSet(generalRoom.members, user.username);
+      dbRun(`UPDATE rooms SET members = ? WHERE roomId = ?`, [newMembers, 'general']);
+    }
+
+    const userRooms = dbAll(`SELECT * FROM rooms`);
+    const filteredRooms = userRooms.filter(r => {
+      const members = parseJsonField(r.members, []);
+      const banned = parseJsonField(r.banned, []);
+      return members.includes(user.username) || r.roomId === 'general';
+    }).filter(r => {
+      const banned = parseJsonField(r.banned, []);
+      return !banned.includes(user.username);
+    });
+
+    filteredRooms.forEach(r => socket.join(r.roomId));
+
+    const generalMsgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp DESC LIMIT 100`, ['general']);
+    const msgRows = generalMsgs.reverse().map(formatMessageRow);
+
+    socket.emit('user:joined', {
+      user,
+      rooms: filteredRooms.map(formatRoomRow),
+      messages: msgRows,
+      onlineUsers: getOnlineUsersList(),
+      unreadCounts: unreadCounts.get(user.username) || {}
+    });
+
+    if (!user.invisible) {
+      io.emit('users:update', getOnlineUsersList());
+      const sysMsg = saveMessage({
+        type: 'system', content: `${user.displayName} присоединился к чату`, room: 'general'
+      });
+      io.to('general').emit('message:new', sysMsg);
+    }
+  }
 
   socket.on('message:send', async (data) => {
     const user = onlineUsers.get(socket.id);

@@ -5,32 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hello Bro</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body data-theme="dark">
 
   <!-- ЭКРАН ВХОДА -->
   <div id="login-screen" class="screen active">
+    <div class="login-bg"></div>
     <div class="login-container">
-      <div class="login-logo">
-        <div class="logo-icon"><i class="fas fa-bolt"></i></div>
-        <h1>Hello Bro</h1>
-        <p>Hello Bro</p>
-      </div>
-      <form id="login-form" class="login-form">
-        <div class="input-group">
-          <i class="fas fa-user"></i>
-          <input type="text" id="username-input" placeholder="Имя пользователя" required minlength="2" maxlength="20" autocomplete="off">
+      <div class="login-card">
+        <div class="login-logo">
+          <div class="logo-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect width="48" height="48" rx="12" fill="url(#logoGrad)"/>
+              <path d="M14 26c0-6.627 4.373-10 10-10s10 3.373 10 10c0 6.627-4.373 10-10 10-2.012 0-3.89-.474-5.546-1.314L14 34l1.632-4.744A9.94 9.94 0 0114 26z" stroke="#fff" stroke-width="2" fill="none"/>
+              <path d="M20 23a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM28 23a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" fill="#fff"/>
+              <path d="M22 28c.8.8 2.4.8 4 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+              <defs><linearGradient id="logoGrad" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#3b82f6"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+            </svg>
+          </div>
+          <h1>Hello Bro</h1>
+          <p class="login-subtitle">Общайся свободно</p>
         </div>
-        <div class="input-group">
-          <i class="fas fa-id-card"></i>
-          <input type="text" id="displayname-input" placeholder="Отображаемое имя (необязательно)" maxlength="30" autocomplete="off">
+
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Вход</button>
+          <button class="auth-tab" data-tab="register">Регистрация</button>
         </div>
-        <button type="submit" class="btn-primary"><i class="fas fa-arrow-right"></i> Войти в Hello Bro</button>
-      </form>
-      <div class="login-hints">
-        <p>💡 <strong>Ctrl+K</strong> — поиск | <strong>Ctrl+B</strong> — жирный | <strong>Ctrl+I</strong> — курсив</p>
+
+        <form id="login-form" class="auth-form active" autocomplete="off">
+          <div class="input-group">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="8" cy="14" r="1"/></svg>
+            <input type="tel" id="login-phone" placeholder="Номер телефона" required autocomplete="off">
+          </div>
+          <div class="input-group">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <input type="password" id="login-password" placeholder="Пароль" required autocomplete="off">
+            <button type="button" class="input-toggle-pass" onclick="togglePass(this,'login-password')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="auth-error" id="login-error"></div>
+          <button type="submit" class="btn-primary btn-glow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            Войти
+          </button>
+        </form>
+
+        <form id="register-form" class="auth-form" autocomplete="off">
+          <div class="input-group">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="8" cy="14" r="1"/></svg>
+            <input type="tel" id="reg-phone" placeholder="Номер телефона" required autocomplete="off">
+          </div>
+          <div class="input-group">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <input type="text" id="reg-name" placeholder="Имя" required maxlength="30" autocomplete="off">
+          </div>
+          <div class="input-group">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 00-5 5v1a5 5 0 0010 0V7a5 5 0 00-5-5z"/><path d="M4 22h16a2 2 0 002-2v-1a6 6 0 00-6-6H8a6 6 0 00-6 6v1a2 2 0 002 2z"/></svg>
+            <input type="text" id="reg-username" placeholder="Юзернейм (@username)" required minlength="2" maxlength="20" autocomplete="off">
+          </div>
+          <div class="input-group">
+            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <input type="password" id="reg-password" placeholder="Пароль" required minlength="4" autocomplete="off">
+            <button type="button" class="input-toggle-pass" onclick="togglePass(this,'reg-password')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="auth-error" id="reg-error"></div>
+          <button type="submit" class="btn-primary btn-glow">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Создать аккаунт
+          </button>
+        </form>
       </div>
     </div>
   </div>
@@ -42,22 +90,31 @@
       <!-- САЙДБАР -->
       <aside class="sidebar">
         <div class="sidebar-header">
-          <div class="logo-small"><i class="fas fa-bolt"></i><span>Hello Bro</span></div>
+          <div class="logo-small">
+            <svg width="22" height="22" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="url(#logoGradSmall)"/><path d="M14 26c0-6.627 4.373-10 10-10s10 3.373 10 10c0 6.627-4.373 10-10 10-2.012 0-3.89-.474-5.546-1.314L14 34l1.632-4.744A9.94 9.94 0 0114 26z" stroke="#fff" stroke-width="2" fill="none"/><path d="M20 23a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM28 23a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" fill="#fff"/><path d="M22 28c.8.8 2.4.8 4 0" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><defs><linearGradient id="logoGradSmall" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#3b82f6"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs></svg>
+            <span>Hello Bro</span>
+          </div>
           <div class="sidebar-header-btns">
-            <button class="btn-icon" onclick="app.toggleTheme()" title="Сменить тему"><i class="fas fa-moon"></i></button>
-            <button class="btn-icon" id="btn-new-group" title="Создать группу"><i class="fas fa-plus"></i></button>
+            <button class="btn-icon glass-btn" onclick="app.toggleTheme()" title="Сменить тему">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </button>
+            <button class="btn-icon glass-btn" id="btn-new-group" title="Создать группу">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
           </div>
         </div>
 
         <div class="search-bar">
-          <i class="fas fa-search"></i>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="search-input" placeholder="Поиск сообщений... (Ctrl+K)">
         </div>
 
         <div class="search-results" id="search-results" style="display:none">
           <div class="search-results-header">
             <span>Результаты</span>
-            <button class="btn-icon btn-small" id="btn-close-search"><i class="fas fa-times"></i></button>
+            <button class="btn-icon btn-small" id="btn-close-search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
           <div class="search-results-list" id="search-results-list"></div>
         </div>
@@ -66,14 +123,20 @@
 
         <div class="sidebar-footer">
           <div class="user-profile" onclick="app.showMyProfile()" style="cursor:pointer">
-            <div class="avatar-small" id="my-avatar"><i class="fas fa-user"></i></div>
+            <div class="avatar-small" id="my-avatar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
             <div class="user-info">
               <span class="username" id="my-name">Пользователь</span>
               <span class="status-text" id="my-status">В сети</span>
             </div>
           </div>
-          <button class="btn-icon" onclick="app.showQRLogin()" title="QR-вход"><i class="fas fa-qrcode"></i></button>
-          <button class="btn-icon" onclick="app.showMyProfile()" title="Настройки"><i class="fas fa-cog"></i></button>
+          <button class="btn-icon glass-btn" onclick="app.showQRLogin()" title="QR-вход">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><line x1="3" y1="14" x2="3" y2="17"/><line x1="3" y1="21" x2="6" y2="21"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="10" y1="14" x2="10" y2="14"/></svg>
+          </button>
+          <button class="btn-icon glass-btn" onclick="app.showMyProfile()" title="Настройки">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
         </div>
       </aside>
 
@@ -81,26 +144,42 @@
       <main class="chat-area">
         <header class="chat-header">
           <div class="chat-info">
-            <button class="btn-icon mobile-back-btn" onclick="app.toggleSidebar()" title="Назад"><i class="fas fa-arrow-left"></i></button>
-            <div class="avatar-medium"><i class="fas fa-comments"></i></div>
+            <button class="btn-icon mobile-back-btn" onclick="app.toggleSidebar()" title="Назад">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </button>
+            <div class="avatar-medium">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </div>
             <div>
-              <h3 id="chat-name">💬 Общий чат</h3>
+              <h3 id="chat-name">Общий чат</h3>
               <span class="chat-subtitle" id="chat-subtitle">Выберите чат</span>
             </div>
           </div>
           <div class="chat-actions">
-            <button class="btn-icon" onclick="app.showPollModal()" title="Опрос"><i class="fas fa-poll"></i></button>
-            <button class="btn-icon" onclick="app.showGamesMenu()" title="Игры"><i class="fas fa-gamepad"></i></button>
-            <button class="btn-icon" onclick="app.showStats()" title="Статистика"><i class="fas fa-chart-bar"></i></button>
-            <button class="btn-icon" onclick="app.getInviteLink()" title="Пригласить"><i class="fas fa-link"></i></button>
-            <button class="btn-icon" onclick="app.clearChat()" title="Очистить"><i class="fas fa-broom"></i></button>
-            <button class="btn-icon btn-danger" onclick="app.deleteRoom()" title="Удалить"><i class="fas fa-trash"></i></button>
+            <button class="btn-icon glass-btn" onclick="app.showPollModal()" title="Опрос">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </button>
+            <button class="btn-icon glass-btn" onclick="app.showGamesMenu()" title="Игры">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4M8 10v4"/><circle cx="16" cy="10" r="1"/><circle cx="18" cy="14" r="1"/></svg>
+            </button>
+            <button class="btn-icon glass-btn" onclick="app.showStats()" title="Статистика">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </button>
+            <button class="btn-icon glass-btn" onclick="app.getInviteLink()" title="Пригласить">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            </button>
+            <button class="btn-icon glass-btn" onclick="app.clearChat()" title="Очистить">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            </button>
+            <button class="btn-icon glass-btn btn-danger" onclick="app.deleteRoom()" title="Удалить">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            </button>
           </div>
         </header>
 
         <!-- Закреплённое -->
         <div class="pinned-bar" id="pinned-bar" style="display:none">
-          <i class="fas fa-thumbtack"></i>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           <div class="pinned-info">
             <span class="pinned-sender" id="pinned-sender"></span>
             <span class="pinned-text" id="pinned-text"></span>
@@ -118,15 +197,26 @@
 
         <footer class="message-input-area">
           <div class="reply-preview" id="reply-preview" style="display:none">
-            <div class="reply-content"><i class="fas fa-reply"></i><span id="reply-text"></span></div>
-            <button class="btn-icon btn-small" id="btn-cancel-reply"><i class="fas fa-times"></i></button>
+            <div class="reply-content">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg>
+              <span id="reply-text"></span>
+            </div>
+            <button class="btn-icon btn-small" id="btn-cancel-reply">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
           <div class="input-row">
-            <button class="btn-icon" id="btn-attach" title="Файл"><i class="fas fa-paperclip"></i></button>
+            <button class="btn-icon glass-btn" id="btn-attach" title="Файл">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            </button>
             <input type="file" id="file-input" hidden>
-            <button class="btn-icon" id="btn-voice" title="Голосовое"><i class="fas fa-microphone"></i></button>
-            <button class="btn-icon" id="btn-video-circle" onclick="app.startVideoCircle()" title="Видеокружок"><i class="fas fa-circle"></i></button>
+            <button class="btn-icon glass-btn" id="btn-voice" title="Голосовое">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><line x1="19" y1="10" x2="19" y2="12a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </button>
+            <button class="btn-icon glass-btn" id="btn-video-circle" onclick="app.startVideoCircle()" title="Видеокружок">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
 
             <div class="message-input-wrapper">
               <textarea id="message-input" placeholder="Сообщение... (**жирный** *курсив* `код`)" rows="1" maxlength="5000"></textarea>
@@ -135,13 +225,17 @@
             <div class="voice-recording" id="voice-recording" style="display:none">
               <div class="recording-dot"></div>
               <span class="recording-time" id="recording-time">0:00</span>
-              <button class="btn-icon btn-danger" id="btn-cancel-voice" title="Отмена"><i class="fas fa-times"></i></button>
-              <button class="btn-icon btn-success" id="btn-send-voice" title="Отправить"><i class="fas fa-check"></i></button>
+              <button class="btn-icon btn-danger" id="btn-cancel-voice" title="Отмена">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <button class="btn-icon btn-success" id="btn-send-voice" title="Отправить">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
             </div>
 
             <!-- Исчезающие -->
             <select id="expire-select" class="expire-select" title="Исчезающее сообщение">
-              <option value="0">💬</option>
+              <option value="0">OFF</option>
               <option value="1">1м</option>
               <option value="5">5м</option>
               <option value="30">30м</option>
@@ -150,33 +244,87 @@
             </select>
 
             <div class="sound-selector">
-              <button class="btn-icon btn-sound" id="btn-sound" title="Звук"><i class="fas fa-music"></i></button>
+              <button class="btn-icon glass-btn btn-sound" id="btn-sound" title="Звук">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+              </button>
               <div class="sound-dropdown" id="sound-dropdown">
-                <div class="sound-dropdown-header"><i class="fas fa-music"></i> Звук отправки</div>
-                <div class="sound-option active" data-sound="default"><i class="fas fa-bell"></i><span>Обычный</span><button class="btn-play" data-sound="default"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="birthday"><i class="fas fa-birthday-cake"></i><span>День рождения 🎂</span><button class="btn-play" data-sound="birthday"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="funny"><i class="fas fa-laugh-squint"></i><span>Смешной 😂</span><button class="btn-play" data-sound="funny"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="urgent"><i class="fas fa-exclamation-triangle"></i><span>Срочно! 🚨</span><button class="btn-play" data-sound="urgent"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="romantic"><i class="fas fa-heart"></i><span>Романтика ❤️</span><button class="btn-play" data-sound="romantic"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="applause"><i class="fas fa-hands-clapping"></i><span>Аплодисменты 👏</span><button class="btn-play" data-sound="applause"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="victory"><i class="fas fa-trophy"></i><span>Победа 🏆</span><button class="btn-play" data-sound="victory"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="magic"><i class="fas fa-wand-magic-sparkles"></i><span>Магия ✨</span><button class="btn-play" data-sound="magic"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="scary"><i class="fas fa-ghost"></i><span>Страшный 👻</span><button class="btn-play" data-sound="scary"><i class="fas fa-play"></i></button></div>
-                <div class="sound-option" data-sound="none"><i class="fas fa-volume-mute"></i><span>Без звука 🔇</span><button class="btn-play" data-sound="none"><i class="fas fa-play"></i></button></div>
+                <div class="sound-dropdown-header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+                  Звук отправки
+                </div>
+                <div class="sound-option active" data-sound="default">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+                  <span>Обычный</span>
+                  <button class="btn-play" data-sound="default"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="birthday">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  <span>День рождения</span>
+                  <button class="btn-play" data-sound="birthday"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="funny">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                  <span>Смешной</span>
+                  <button class="btn-play" data-sound="funny"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="urgent">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <span>Срочно!</span>
+                  <button class="btn-play" data-sound="urgent"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="romantic">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                  <span>Романтика</span>
+                  <button class="btn-play" data-sound="romantic"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="applause">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10l2-4 2 4M7 10l-3 6 2 4 6-2 2-6M7 10l2 4"/><path d="M19 13l-2 4-2-4M19 13l3-6-2-4-6 2-2 6M19 13l-2-4"/></svg>
+                  <span>Аплодисменты</span>
+                  <button class="btn-play" data-sound="applause"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="victory">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 9 8 12 13c3-5 5-9 7.5-9a2.5 2.5 0 010 5H18"/><path d="M4 22h16"/><path d="M12 22V9"/></svg>
+                  <span>Победа</span>
+                  <button class="btn-play" data-sound="victory"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="magic">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 4 4 1-3 3 1 4-4-2-4 2 1-4-3-3 4-1 2-4z"/></svg>
+                  <span>Магия</span>
+                  <button class="btn-play" data-sound="magic"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="scary">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                  <span>Страшный</span>
+                  <button class="btn-play" data-sound="scary"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
+                <div class="sound-option" data-sound="none">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                  <span>Без звука</span>
+                  <button class="btn-play" data-sound="none"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+                </div>
               </div>
             </div>
 
-            <button class="btn-icon" id="btn-emoji" title="Эмодзи"><i class="fas fa-smile"></i></button>
+            <button class="btn-icon glass-btn" id="btn-emoji" title="Эмодзи">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </button>
             <div class="emoji-picker" id="emoji-picker" style="display:none"><div class="emoji-grid"></div></div>
 
-            <button class="btn-send" id="btn-send" title="Отправить"><i class="fas fa-paper-plane"></i></button>
+            <button class="btn-send" id="btn-send" title="Отправить">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
           </div>
         </footer>
       </main>
 
       <!-- ПАНЕЛЬ ПОЛЬЗОВАТЕЛЕЙ -->
       <aside class="users-panel" id="users-panel">
-        <div class="panel-header"><h3>👥 Участники</h3></div>
+        <div class="panel-header">
+          <h3>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            Участники
+          </h3>
+        </div>
         <div class="users-list" id="users-list"></div>
       </aside>
     </div>
@@ -185,23 +333,55 @@
   <!-- МОДАЛКА ГРУППЫ -->
   <div class="modal" id="modal-new-group" style="display:none">
     <div class="modal-content">
-      <div class="modal-header"><h3><i class="fas fa-users"></i> Новая группа</h3><button class="btn-icon" id="btn-close-modal"><i class="fas fa-times"></i></button></div>
+      <div class="modal-header">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          Новая группа
+        </h3>
+        <button class="btn-icon" id="btn-close-modal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
       <div class="modal-body">
-        <div class="input-group"><i class="fas fa-edit"></i><input type="text" id="group-name-input" placeholder="Название"></div>
-        <div class="input-group"><i class="fas fa-align-left"></i><input type="text" id="group-desc" placeholder="Описание (необязательно)"></div>
-        <label class="checkbox-label"><input type="checkbox" id="group-secret"> 🔒 Секретная группа (вход по паролю)</label>
-        <div class="input-group" id="group-password-wrap" style="display:none"><i class="fas fa-lock"></i><input type="text" id="group-password" placeholder="Пароль группы"></div>
+        <div class="input-group">
+          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <input type="text" id="group-name-input" placeholder="Название">
+        </div>
+        <div class="input-group">
+          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+          <input type="text" id="group-desc" placeholder="Описание (необязательно)">
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="group-secret">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Секретная группа (вход по паролю)
+        </label>
+        <div class="input-group" id="group-password-wrap" style="display:none">
+          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <input type="text" id="group-password" placeholder="Пароль группы">
+        </div>
         <p class="modal-hint">Участники:</p>
         <div class="members-select" id="members-select"></div>
       </div>
-      <div class="modal-footer"><button class="btn-secondary" id="btn-cancel-group">Отмена</button><button class="btn-primary" id="btn-create-group">Создать</button></div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="btn-cancel-group">Отмена</button>
+        <button class="btn-primary" id="btn-create-group">Создать</button>
+      </div>
     </div>
   </div>
 
   <!-- МОДАЛКА ПРОФИЛЯ -->
   <div class="modal" id="modal-profile" style="display:none">
     <div class="modal-content modal-profile-large">
-      <div class="modal-header"><h3><i class="fas fa-user-circle"></i> Мой профиль</h3><button class="btn-icon" onclick="document.getElementById('modal-profile').style.display='none'"><i class="fas fa-times"></i></button></div>
+      <div class="modal-header">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Мой профиль
+        </h3>
+        <button class="btn-icon" onclick="document.getElementById('modal-profile').style.display='none'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
       <div class="modal-body profile-modal-body">
         <div class="profile-avatar-large" id="profile-avatar-large">A</div>
         <input type="file" id="avatar-file-input" accept="image/*" hidden>
@@ -225,9 +405,18 @@
         <p class="section-label">Аватарка</p>
         <div class="avatar-emoji-grid" id="avatar-emoji-grid"></div>
 
-        <div class="input-group"><i class="fas fa-user"></i><input type="text" id="profile-displayname" placeholder="Имя"></div>
-        <div class="input-group"><i class="fas fa-comment"></i><input type="text" id="profile-status" placeholder="Статус"></div>
-        <div class="input-group"><i class="fas fa-info-circle"></i><input type="text" id="profile-bio" placeholder="О себе" maxlength="150"></div>
+        <div class="input-group">
+          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input type="text" id="profile-displayname" placeholder="Имя">
+        </div>
+        <div class="input-group">
+          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          <input type="text" id="profile-status" placeholder="Статус">
+        </div>
+        <div class="input-group">
+          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <input type="text" id="profile-bio" placeholder="О себе" maxlength="150">
+        </div>
 
         <p class="section-label">Статус активности</p>
         <div class="activity-picker" id="activity-picker"></div>
@@ -237,31 +426,56 @@
 
         <p class="section-label">Приватность</p>
         <div class="privacy-options">
-          <label class="checkbox-label"><input type="checkbox" id="profile-invisible"> 👻 Невидимка (скрыть онлайн)</label>
-          <label class="checkbox-label"><input type="checkbox" id="profile-dnd"> 🔕 Не беспокоить</label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="profile-invisible">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            Невидимка (скрыть онлайн)
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="profile-dnd">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Не беспокоить
+          </label>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="document.getElementById('modal-profile').style.display='none'">Отмена</button>
-        <button class="btn-primary" onclick="app.saveProfile()"><i class="fas fa-check"></i> Сохранить</button>
+        <button class="btn-primary" onclick="app.saveProfile()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Сохранить
+        </button>
       </div>
     </div>
   </div>
 
   <!-- УВЕДОМЛЕНИЕ -->
   <div class="sound-notification" id="sound-notification" style="display:none">
-    <div class="sound-notif-content"><i class="fas fa-bell"></i><span id="sound-notif-text"></span></div>
+    <div class="sound-notif-content">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <span id="sound-notif-text"></span>
+    </div>
   </div>
 
   <!-- МОДАЛКА ВИДЕО-КРУЖКА -->
   <div class="modal" id="modal-video-circle" style="display:none">
     <div class="modal-content vc-modal">
-      <div class="modal-header"><h3><i class="fas fa-circle"></i> Видеокружок</h3><button class="btn-icon" onclick="app.closeVideoCircle()"><i class="fas fa-times"></i></button></div>
+      <div class="modal-header">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+          Видеокружок
+        </h3>
+        <button class="btn-icon" onclick="app.closeVideoCircle()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
       <div class="modal-body">
         <div class="vc-preview-wrap"><video id="video-circle-preview" muted playsinline></video></div>
         <div class="vc-timer" id="vc-timer">0</div>
         <div class="vc-btns">
-          <button class="btn-primary" onclick="app.stopVideoCircle()" style="width:auto"><i class="fas fa-stop"></i> Отправить</button>
+          <button class="btn-primary" onclick="app.stopVideoCircle()" style="width:auto">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            Отправить
+          </button>
           <button class="btn-secondary" onclick="app.closeVideoCircle()">Отмена</button>
         </div>
       </div>
@@ -271,12 +485,23 @@
   <!-- МОДАЛКА QR -->
   <div class="modal" id="modal-qr" style="display:none">
     <div class="modal-content">
-      <div class="modal-header"><h3><i class="fas fa-qrcode"></i> Войти через QR</h3><button class="btn-icon" onclick="document.getElementById('modal-qr').style.display='none'"><i class="fas fa-times"></i></button></div>
+      <div class="modal-header">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><line x1="3" y1="14" x2="3" y2="17"/><line x1="3" y1="21" x2="6" y2="21"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="10" y1="14" x2="10" y2="14"/></svg>
+          Войти через QR
+        </h3>
+        <button class="btn-icon" onclick="document.getElementById('modal-qr').style.display='none'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
       <div class="modal-body qr-modal-body">
         <p style="color:var(--text-secondary);margin-bottom:8px">Отсканируй QR-код приложением Hello Bro на Android</p>
         <div id="qr-code-container"></div>
         <div id="qr-status">Ожидание сканирования...</div>
-        <button class="btn-primary" id="qr-confirm-btn" style="display:none;width:auto;margin:8px auto" onclick="app.socket.emit('qr:confirm',{sessionId:this.dataset.sessionId})"><i class="fas fa-check"></i> Подтвердить</button>
+        <button class="btn-primary" id="qr-confirm-btn" style="display:none;width:auto;margin:8px auto" onclick="app.socket.emit('qr:confirm',{sessionId:this.dataset.sessionId})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Подтвердить
+        </button>
         <input type="hidden" id="qr-token">
       </div>
     </div>
@@ -285,7 +510,12 @@
   <!-- МОДАЛКА ЗВОНКА -->
   <div class="modal call-modal" id="modal-call" style="display:none">
     <div class="modal-content">
-      <div class="modal-header"><h3><i class="fas fa-phone"></i> Звонок</h3></div>
+      <div class="modal-header">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+          Звонок
+        </h3>
+      </div>
       <div class="modal-body">
         <div class="call-container">
           <div class="call-videos">
@@ -294,9 +524,15 @@
           </div>
           <div id="call-status">Соединение...</div>
           <div class="call-btns">
-            <button class="call-btn call-btn-mute" onclick="this.classList.toggle('active');if(app._pc){app._pc.getSenders().forEach(s=>{if(s.track.kind==='audio')s.track.enabled=!this.classList.contains('active')})}" title="Микрофон"><i class="fas fa-microphone"></i></button>
-            <button class="call-btn call-btn-end" onclick="app.endCall()" title="Завершить"><i class="fas fa-phone-slash"></i></button>
-            <button class="call-btn call-btn-video" id="btn-toggle-video" onclick="this.classList.toggle('active');if(app._pc){app._pc.getSenders().forEach(s=>{if(s.track.kind==='video')s.track.enabled=!this.classList.contains('active')})}" title="Видео"><i class="fas fa-video"></i></button>
+            <button class="call-btn call-btn-mute" onclick="this.classList.toggle('active');if(app._pc){app._pc.getSenders().forEach(s=>{if(s.track.kind==='audio')s.track.enabled=!this.classList.contains('active')})}" title="Микрофон">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><line x1="19" y1="10" x2="19" y2="12a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            </button>
+            <button class="call-btn call-btn-end" onclick="app.endCall()" title="Завершить">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="23" y1="1" x2="1" y2="23"/><path d="M16.72 13.06A10.94 10.94 0 0119 12.55a2 2 0 011.85 1.38l.5 1.5a2.05 2.05 0 01-.83 2.24l-1.54 1.07a2 2 0 01-2.24-.08 16.57 16.57 0 01-3.34-2.56M5.28 10.94A10.94 10.94 0 005 11.45a2 2 0 00-1.85 1.38l-.5 1.5a2.05 2.05 0 00.83 2.24l1.54 1.07a2 2 0 002.24-.08 16.57 16.57 0 003.34-2.56M10.59 5.17A10.9 10.9 0 0112 5c4.42 0 8 3.58 8 8"/></svg>
+            </button>
+            <button class="call-btn call-btn-video" id="btn-toggle-video" onclick="this.classList.toggle('active');if(app._pc){app._pc.getSenders().forEach(s=>{if(s.track.kind==='video')s.track.enabled=!this.classList.contains('active')})}" title="Видео">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -310,6 +546,20 @@
     document.getElementById('group-secret')?.addEventListener('change', (e) => {
       document.getElementById('group-password-wrap').style.display = e.target.checked ? 'block' : 'none';
     });
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab + '-form').classList.add('active');
+        document.getElementById('login-error').textContent = '';
+        document.getElementById('reg-error').textContent = '';
+      });
+    });
+    function togglePass(btn, id) {
+      const inp = document.getElementById(id);
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
   </script>
 </body>
 </html>

@@ -238,26 +238,54 @@ class HelloBro {
   }
 
   // ============================================
-  // ВХОД
+  // ВХОД / РЕГИСТРАЦИЯ
   // ============================================
   bindLoginEvents() {
     document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      const u = document.getElementById('username-input').value.trim();
-      const d = document.getElementById('displayname-input').value.trim();
-      if (!u) return;
-      this.connect(u, d || u);
+      const phone = document.getElementById('login-phone').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+      document.getElementById('login-error').textContent = '';
+      if (!phone || !password) return;
+      this.login(phone, password);
+    });
+    document.getElementById('register-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const username = document.getElementById('reg-username').value.trim().replace('@','');
+      const password = document.getElementById('reg-password').value.trim();
+      document.getElementById('reg-error').textContent = '';
+      if (!phone || !name || !username || !password) return;
+      this.register(phone, name, username, password);
     });
   }
 
   // ============================================
   // ПОДКЛЮЧЕНИЕ К СЕРВЕРУ
   // ============================================
-  connect(username, displayName) {
+  login(phone, password) {
     this.socket = io(window.location.origin);
-
     this.socket.on('connect', () => {
-      this.socket.emit('user:join', { username, displayName });
+      this.socket.emit('user:join', { phone, password });
+    });
+    this._bindSocketEvents();
+  }
+
+  register(phone, displayName, username, password) {
+    this.socket = io(window.location.origin);
+    this.socket.on('connect', () => {
+      this.socket.emit('user:register', { phone, username, displayName, password });
+    });
+    this._bindSocketEvents();
+  }
+
+  _bindSocketEvents() {
+    this.socket.on('auth:error', (data) => {
+      const loginErr = document.getElementById('login-error');
+      const regErr = document.getElementById('reg-error');
+      if (loginErr) loginErr.textContent = data.text;
+      if (regErr) regErr.textContent = data.text;
     });
 
     this.socket.on('user:joined', (data) => {
@@ -297,7 +325,7 @@ class HelloBro {
         } else if (msg.sendSound !== 'none') {
           this.playSound('default');
         }
-        this.showBrowserNotification(msg.sender.displayName, msg.type === 'voice' ? '🎤 Голосовое' : (msg.content || '📎 Файл'));
+        this.showBrowserNotification(msg.sender.displayName, msg.type === 'voice' ? '🎤 Голосовое' : (msg.content || 'Файл'));
       }
       this.renderChatList();
     });
@@ -313,7 +341,7 @@ class HelloBro {
       if (data.room === this.currentRoom) {
         document.querySelectorAll('.message.own .message-read-status.unread').forEach(el => {
           el.classList.remove('unread'); el.classList.add('read');
-          el.innerHTML = '<i class="fas fa-check-double"></i>';
+          el.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 6 9 15 4 10"/><polyline points="22 6 13 15 8 10"/></svg>';
         });
       }
     });
