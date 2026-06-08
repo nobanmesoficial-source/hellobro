@@ -1,5 +1,0 @@
-🚀 Hello Bro Server running on port 8001
-📡 WebSocket: ws://0.0.0.0:8001/ws
-🌍 Health: http://0.0.0.0:8001/health
-⏰ Scheduled messages worker started
-🗑️ Self-destruct worker started
