@@ -292,6 +292,88 @@ const unreadCounts = new Map();
 const activeGames = new Map();
 const lastMessageTime = new Map();
 
+async function proceedLogin(socket, dbUser) {
+  const invisible = !!dbUser.invisible;
+  const sessionToken = uuidv4().replace(/-/g, '') + '-' + uuidv4().replace(/-/g, '');
+  dbRun(`UPDATE users SET status = ?, lastSeen = datetime('now'), sessionToken = ? WHERE username = ?`,
+    [invisible ? 'offline' : 'online', sessionToken, dbUser.username]);
+  dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [dbUser.username]);
+  const user = formatUserRow(dbUser);
+  user.id = socket.id;
+  user.status = user.invisible ? 'offline' : 'online';
+
+  onlineUsers.set(socket.id, user);
+  if (!unreadCounts.has(user.username)) unreadCounts.set(user.username, {});
+
+  socket.join('general');
+
+  const generalRoom = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, ['general']);
+  if (generalRoom) {
+    const newMembers = addToSet(generalRoom.members, user.username);
+    dbRun(`UPDATE rooms SET members = ? WHERE roomId = ?`, [newMembers, 'general']);
+  }
+
+  const userRooms = dbAll(`SELECT * FROM rooms`);
+  const filteredRooms = userRooms.filter(r => {
+    const members = parseJsonField(r.members, []);
+    const banned = parseJsonField(r.banned, []);
+    return members.includes(user.username) || r.roomId === 'general';
+  }).filter(r => {
+    const banned = parseJsonField(r.banned, []);
+    return !banned.includes(user.username);
+  });
+
+  filteredRooms.forEach(r => socket.join(r.roomId));
+
+  const generalMsgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp DESC LIMIT 100`, ['general']);
+  const msgRows = generalMsgs.reverse().map(formatMessageRow);
+
+  const userChannels = dbAll(`SELECT * FROM channels`);
+  const subscribedChannels = userChannels.filter(c => {
+    const subs = parseJsonField(c.subscribers, []);
+    return subs.includes(user.username);
+  });
+  const allDms = dbAll(`SELECT * FROM rooms WHERE type = 'direct'`);
+  const userDms = allDms.filter(r => {
+    const members = parseJsonField(r.members, []);
+    return members.includes(user.username);
+  });
+  userDms.forEach(r => socket.join(r.roomId));
+  subscribedChannels.forEach(c => socket.join('ch-' + c.channelId));
+
+  const favs = dbAll(`SELECT * FROM favorites WHERE username = ? ORDER BY timestamp DESC LIMIT 200`, [user.username]);
+
+  socket.emit('user:joined', {
+    user,
+    rooms: filteredRooms.map(formatRoomRow),
+    dms: userDms.map(formatRoomRow),
+    channels: subscribedChannels.map(c => ({
+      channelId: c.channelId, name: c.name, description: c.description,
+      type: c.type, admin: c.admin,
+      subscribers: parseJsonField(c.subscribers, []),
+      avatar: c.avatar, createdAt: c.createdAt
+    })),
+    messages: msgRows,
+    favorites: favs.map(f => ({
+      id: f.id, messageId: f.messageId,
+      type: f.type, content: f.content,
+      file: parseJsonField(f.file), room: f.room,
+      sender: parseJsonField(f.sender), timestamp: f.timestamp
+    })),
+    onlineUsers: getOnlineUsersList(),
+    unreadCounts: unreadCounts.get(user.username) || {},
+    sessionToken
+  });
+
+  if (!user.invisible) {
+    io.emit('users:update', getOnlineUsersList());
+    const sysMsg = saveMessage({
+      type: 'system', content: `${user.displayName} присоединился к чату`, room: 'general'
+    });
+    io.to('general').emit('message:new', sysMsg);
+  }
+}
+
 async function init() {
   const general = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, ['general']);
   if (!general) {
@@ -309,7 +391,8 @@ initDb().then(() => {
     registerFeatures(io, db, {
       dbAll, dbGet, dbRun, saveDb,
       onlineUsers, findSocketByUsername, getOnlineUser,
-      saveMessage, formatMessageRow, app
+      saveMessage, formatMessageRow, app,
+      proceedLogin
     });
   }
   server.listen(PORT, () => {
@@ -419,88 +502,6 @@ io.on('connection', (socket) => {
       user.sessionToken = null;
     } catch (e) { console.error('Logout error:', e); }
   });
-
-  async function proceedLogin(socket, dbUser) {
-    const invisible = !!dbUser.invisible;
-    const sessionToken = generateId() + '-' + generateId();
-    dbRun(`UPDATE users SET status = ?, lastSeen = datetime('now'), sessionToken = ? WHERE username = ?`,
-      [invisible ? 'offline' : 'online', sessionToken, dbUser.username]);
-    dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [dbUser.username]);
-    const user = formatUserRow(dbUser);
-    user.id = socket.id;
-    user.status = user.invisible ? 'offline' : 'online';
-
-    onlineUsers.set(socket.id, user);
-    if (!unreadCounts.has(user.username)) unreadCounts.set(user.username, {});
-
-    socket.join('general');
-
-    const generalRoom = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, ['general']);
-    if (generalRoom) {
-      const newMembers = addToSet(generalRoom.members, user.username);
-      dbRun(`UPDATE rooms SET members = ? WHERE roomId = ?`, [newMembers, 'general']);
-    }
-
-    const userRooms = dbAll(`SELECT * FROM rooms`);
-    const filteredRooms = userRooms.filter(r => {
-      const members = parseJsonField(r.members, []);
-      const banned = parseJsonField(r.banned, []);
-      return members.includes(user.username) || r.roomId === 'general';
-    }).filter(r => {
-      const banned = parseJsonField(r.banned, []);
-      return !banned.includes(user.username);
-    });
-
-    filteredRooms.forEach(r => socket.join(r.roomId));
-
-    const generalMsgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp DESC LIMIT 100`, ['general']);
-    const msgRows = generalMsgs.reverse().map(formatMessageRow);
-
-    const userChannels = dbAll(`SELECT * FROM channels`);
-    const subscribedChannels = userChannels.filter(c => {
-      const subs = parseJsonField(c.subscribers, []);
-      return subs.includes(user.username);
-    });
-    const allDms = dbAll(`SELECT * FROM rooms WHERE type = 'direct'`);
-    const userDms = allDms.filter(r => {
-      const members = parseJsonField(r.members, []);
-      return members.includes(user.username);
-    });
-    userDms.forEach(r => socket.join(r.roomId));
-    subscribedChannels.forEach(c => socket.join('ch-' + c.channelId));
-
-    const favs = dbAll(`SELECT * FROM favorites WHERE username = ? ORDER BY timestamp DESC LIMIT 200`, [user.username]);
-
-    socket.emit('user:joined', {
-      user,
-      rooms: filteredRooms.map(formatRoomRow),
-      dms: userDms.map(formatRoomRow),
-      channels: subscribedChannels.map(c => ({
-        channelId: c.channelId, name: c.name, description: c.description,
-        type: c.type, admin: c.admin,
-        subscribers: parseJsonField(c.subscribers, []),
-        avatar: c.avatar, createdAt: c.createdAt
-      })),
-      messages: msgRows,
-      favorites: favs.map(f => ({
-        id: f.id, messageId: f.messageId,
-        type: f.type, content: f.content,
-        file: parseJsonField(f.file), room: f.room,
-        sender: parseJsonField(f.sender), timestamp: f.timestamp
-      })),
-      onlineUsers: getOnlineUsersList(),
-      unreadCounts: unreadCounts.get(user.username) || {},
-      sessionToken
-    });
-
-    if (!user.invisible) {
-      io.emit('users:update', getOnlineUsersList());
-      const sysMsg = saveMessage({
-        type: 'system', content: `${user.displayName} присоединился к чату`, room: 'general'
-      });
-      io.to('general').emit('message:new', sysMsg);
-    }
-  }
 
   socket.on('message:send', async (data) => {
     const user = onlineUsers.get(socket.id);

@@ -1,3 +1,5 @@
+const HB_SERVER = 'http://185.104.251.179:3000';
+
 class HelloBro {
   constructor() {
     this.socket = null;
@@ -228,7 +230,7 @@ class HelloBro {
   // ==================== QR-FIRST LOGIN ====================
   startQRLogin() {
     if (this._qrSocket) { this._qrSocket.close(); this._qrSocket = null; }
-    this._qrSocket = io(window.location.origin);
+    this._qrSocket = io(HB_SERVER);
     this._qrSocket.on('connect', () => {
       this._qrSocket.emit('qr:generate');
     });
@@ -282,9 +284,11 @@ class HelloBro {
   }
 
   _handleJoinedData(data) {
+    if (this.user && this.socket?.connected) return;
     this.user = data.user;
     this.onlineUsers = data.onlineUsers || [];
     this.unreadCounts = data.unreadCounts || {};
+    if (data.sessionToken) localStorage.setItem('hb-session-token', data.sessionToken);
     if (data.user.theme) this.applyTheme(data.user.theme);
 
     data.rooms.forEach(r => this.rooms.set(r.id, r));
@@ -332,14 +336,15 @@ class HelloBro {
   tryReconnect() {
     const token = localStorage.getItem('hb-session-token');
     if (!token) return;
-    this.socket = io(window.location.origin);
-    this.socket.on('connect', () => {
-      this.socket.emit('user:reconnect', { sessionToken: token });
+    const s = io(HB_SERVER);
+    this.socket = s;
+    s.on('connect', () => {
+      s.emit('user:reconnect', { sessionToken: token });
     });
     this._bindSocketEvents();
-    this.socket.on('auth:error', () => {
+    s.on('auth:error', () => {
       localStorage.removeItem('hb-session-token');
-      this.socket = null;
+      if (this.socket === s) this.socket = null;
     });
   }
 
@@ -381,7 +386,8 @@ class HelloBro {
   }
 
   login(phone, password) {
-    this.socket = io(window.location.origin);
+    if (this.socket) { this.socket.removeAllListeners(); this.socket.disconnect(); }
+    this.socket = io(HB_SERVER);
     this.socket.on('connect', () => {
       this.socket.emit('user:join', { phone, password });
     });
@@ -389,7 +395,8 @@ class HelloBro {
   }
 
   register(phone, displayName, username, password) {
-    this.socket = io(window.location.origin);
+    if (this.socket) { this.socket.removeAllListeners(); this.socket.disconnect(); }
+    this.socket = io(HB_SERVER);
     this.socket.on('connect', () => {
       this.socket.emit('user:register', { phone, username, displayName, password });
     });
@@ -407,9 +414,6 @@ class HelloBro {
 
     this.socket.on('user:joined', (data) => {
       this._handleJoinedData(data);
-      if (data.sessionToken) {
-        localStorage.setItem('hb-session-token', data.sessionToken);
-      }
     });
 
     this.socket.on('message:new', (msg) => {
@@ -710,7 +714,8 @@ class HelloBro {
       this.emitTyping();
     });
 
-    document.getElementById('btn-new-group').addEventListener('click', () => this.showGroupModal());
+    const newGroupBtn = document.getElementById('btn-new-group');
+    if (newGroupBtn) newGroupBtn.addEventListener('click', () => this.showGroupModal());
     document.getElementById('btn-cancel-reply').addEventListener('click', () => this.cancelReply());
     document.getElementById('btn-create-group').addEventListener('click', () => this.createGroup());
 
@@ -1275,7 +1280,7 @@ class HelloBro {
     let result;
     if (game.winner === 'draw') result = 'Ничья!';
     else result = `${game.playerNames[game.winner] || game.winner} победил!`;
-    this.showNotification(`${choices[game.players[players[0]]]} vs ${choices[game.players[players[1]]} — ${result}`);
+    this.showNotification(`${choices[game.players[players[0]]]} vs ${choices[game.players[players[1]]]} — ${result}`);
   }
 
   rollDice() {
@@ -1838,8 +1843,10 @@ class HelloBro {
     localStorage.removeItem('pulse-username');
     document.getElementById('modal-profile').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('chat-container').style.display = 'none';
-    document.getElementById('sidebar-container').style.display = 'none';
+    const cc = document.getElementById('chat-container');
+    if (cc) cc.style.display = 'none';
+    const sc = document.getElementById('sidebar-container');
+    if (sc) sc.style.display = 'none';
     this.showNotification('Вы вышли из аккаунта');
   }
 
@@ -1892,7 +1899,7 @@ class HelloBro {
   getInviteLink() {
     const room = this.rooms.get(this.currentRoom);
     if (!room?.inviteCode) return;
-    const link = `${window.location.origin}/invite/${room.inviteCode}`;
+    const link = `${HB_SERVER}/invite/${room.inviteCode}`;
     navigator.clipboard.writeText(link).then(() => this.showNotification('Ссылка скопирована'));
   }
 

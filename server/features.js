@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 
 module.exports = function registerFeatures(io, db, ctx) {
-  const { dbAll, dbGet, dbRun, saveDb, onlineUsers, findSocketByUsername, getOnlineUser, saveMessage, formatMessageRow, app } = ctx;
+  const { dbAll, dbGet, dbRun, saveDb, onlineUsers, findSocketByUsername, getOnlineUser, saveMessage, formatMessageRow, app, proceedLogin } = ctx;
 
   db.run(`CREATE TABLE IF NOT EXISTS devices (
     deviceId TEXT PRIMARY KEY,
