@@ -1,8 +1,3 @@
-// ============================================
-// PULSE MESSENGER v2.0 ULTIMATE
-// Полная версия со всеми фичами
-// ============================================
-
 class HelloBro {
   constructor() {
     this.socket = null;
@@ -12,6 +7,10 @@ class HelloBro {
     this.replyingTo = null;
     this.typingTimeout = null;
     this.rooms = new Map();
+    this.dms = [];
+    this.channels = [];
+    this.favorites = [];
+    this.contacts = [];
     this.onlineUsers = [];
     this.isJoiningRoom = false;
     this.unreadCounts = {};
@@ -24,18 +23,22 @@ class HelloBro {
     this.hoverTimeout = null;
     this.chatBackground = localStorage.getItem('pulse-bg') || 'none';
     this.currentTheme = localStorage.getItem('pulse-theme') || 'dark';
+    this.messagesCache = new Map();
+    this._msgOffsets = new Map();
+    this._isLoadingOlder = false;
+    this._channelsSubTab = 'subscribed';
 
     this.soundMap = {
-      default: { name: 'Обычный', emoji: '🔔' },
-      birthday: { name: 'День рождения', emoji: '🎂' },
-      funny: { name: 'Смешной', emoji: '😂' },
-      urgent: { name: 'Срочно!', emoji: '🚨' },
-      romantic: { name: 'Романтика', emoji: '❤️' },
-      applause: { name: 'Аплодисменты', emoji: '👏' },
-      victory: { name: 'Победа', emoji: '🏆' },
-      magic: { name: 'Магия', emoji: '✨' },
-      scary: { name: 'Страшный', emoji: '👻' },
-      none: { name: 'Без звука', emoji: '🔇' }
+      default: { name: 'Обычный' },
+      birthday: { name: 'День рождения' },
+      funny: { name: 'Смешной' },
+      urgent: { name: 'Срочно!' },
+      romantic: { name: 'Романтика' },
+      applause: { name: 'Аплодисменты' },
+      victory: { name: 'Победа' },
+      magic: { name: 'Магия' },
+      scary: { name: 'Страшный' },
+      none: { name: 'Без звука' }
     };
 
     this.backgrounds = [
@@ -59,13 +62,13 @@ class HelloBro {
     ];
 
     this.emojiCategories = {
-      '😀 Смайлы': ['😀','😂','🤣','😊','😍','🥰','😘','😎','🤔','😏','😢','😭','😡','🤯','🥳','🤩','😴','🤮','🥶','🥵','😇','🤠','🥸','😈','👹','🤡','💀','👻','👽','🤑','😤','🫡'],
-      '👋 Жесты': ['👍','👎','👋','🤝','💪','🙏','👏','🤞','✌️','🤟','🤘','👌','🫶','🫰','👊','✊','🤚','🖐️','✋','👆','👇','👈','👉','🖕','🫵'],
-      '❤️ Символы': ['❤️','🔥','⭐','🎉','💎','🌟','✅','❌','⚡','💬','🔒','🔔','💯','♻️','⚠️','🏳️','🏴','💜','💙','💚','💛','🧡','🤍','🖤','💔','❣️'],
-      '🎮 Развлечения': ['🎮','🎸','🎵','🎬','🎨','🎭','🎪','🎯','🎲','🎳','🏆','🥇','🥈','🥉','⚽','🏀','🎾','🏈','🎱'],
-      '🍕 Еда': ['🍕','🍔','🍟','🌮','🌯','🍣','🍜','🍰','🍭','☕','🍺','🍷','🥤','🧁','🍩','🍪','🥐','🍿'],
-      '🐱 Животные': ['🐱','🐶','🐸','🦊','🦄','🐼','🐨','🐯','🦁','🐙','🦋','🐺','🐰','🦅','🐳','🦈','🐢','🦎'],
-      '🌍 Природа': ['🌍','🌈','☀️','🌙','⭐','❄️','🔥','💧','🌊','🌸','🌺','🍀','🌲','🏔️','🌋','🌅','🌄']
+      'Смайлы': ['😀','😂','🤣','😊','😍','🥰','😘','😎','🤔','😏','😢','😭','😡','🤯','🥳','🤩','😴','🥶','🥵','😇','🤠','🥸','😈','👹','🤡','💀','👻','👽'],
+      'Жесты': ['👍','👎','👋','🤝','💪','🙏','👏','🤞','✌️','🤟','🤘','👌','👊','✊','🤚','🖐️','✋','👆','👇','👈','👉'],
+      'Символы': ['❤️','🔥','⭐','🎉','💎','🌟','✅','❌','⚡','💬','🔒','🔔','💯','♻️','⚠️','💜','💙','💚','💛','🧡'],
+      'Развлечения': ['🎮','🎸','🎵','🎬','🎨','🎭','🎪','🎯','🎲','🎳','🏆','🥇','🥈','🥉','⚽','🏀','🎾'],
+      'Еда': ['🍕','🍔','🍟','🌮','🌯','🍣','🍜','🍰','🍭','☕','🍺','🍷','🥤','🧁','🍩','🍪'],
+      'Животные': ['🐱','🐶','🐸','🦊','🦄','🐼','🐨','🐯','🦁','🐙','🦋','🐺','🐰','🦅','🐳','🦈'],
+      'Природа': ['🌍','🌈','☀️','🌙','⭐','❄️','🔥','💧','🌊','🌸','🌺','🍀','🌲','🏔️','🌋','🌅']
     };
 
     this.activityStatuses = [
@@ -81,13 +84,12 @@ class HelloBro {
       { emoji: '🏠', text: 'Дома' }
     ];
 
+    this.profileColors = ['#7c3aed','#3b82f6','#a78bfa','#1d4ed8','#6d28d9','#60a5fa','#c084fc','#2563eb','#4c1d95','#93c5fd','#ddd6fe','#1e1b4b'];
+
     this.audioContext = null;
     this.init();
   }
 
-  // ============================================
-  // ИНИЦИАЛИЗАЦИЯ
-  // ============================================
   init() {
     this.applyTheme(this.currentTheme);
     this.bindLoginEvents();
@@ -97,15 +99,18 @@ class HelloBro {
     this.bindFileUpload();
     this.bindVoiceRecording();
     this.bindSearch();
+    this.bindSidebarTabs();
+    this.bindChannelsUI();
     this.buildEmojiGrid();
     this.requestNotificationPermission();
     this.applyChatBackground();
     this.checkInviteLink();
+    this.tryReconnect();
+    this.startQRLogin();
+    this.bindQRLayoutButtons();
+    this.initSettingsTabs();
   }
 
-  // ============================================
-  // ТЕМЫ
-  // ============================================
   applyTheme(theme) {
     this.currentTheme = theme;
     localStorage.setItem('pulse-theme', theme);
@@ -113,32 +118,21 @@ class HelloBro {
   }
 
   toggleTheme() {
-    const newTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
-    this.applyTheme(newTheme);
-    if (this.socket) {
-      this.socket.emit('profile:update', { theme: newTheme });
-    }
+    const n = this.currentTheme === 'dark' ? 'light' : 'dark';
+    this.applyTheme(n);
+    if (this.socket) this.socket.emit('profile:update', { theme: n });
   }
 
-  // ============================================
-  // ПРИГЛАШЕНИЯ
-  // ============================================
   checkInviteLink() {
-    const params = new URLSearchParams(window.location.search);
-    const invite = params.get('invite');
-    if (invite) {
-      this._pendingInvite = invite;
-    }
+    const p = new URLSearchParams(window.location.search);
+    const i = p.get('invite');
+    if (i) this._pendingInvite = i;
   }
 
   joinByInvite(code, password) {
-    if (!this.socket) return;
-    this.socket.emit('room:join-invite', { inviteCode: code, password });
+    if (this.socket) this.socket.emit('room:join-invite', { inviteCode: code, password });
   }
 
-  // ============================================
-  // УВЕДОМЛЕНИЯ
-  // ============================================
   requestNotificationPermission() {
     if ('Notification' in window) {
       if (Notification.permission === 'granted') this.notificationsEnabled = true;
@@ -158,9 +152,6 @@ class HelloBro {
     } catch (e) {}
   }
 
-  // ============================================
-  // АУДИО
-  // ============================================
   getAudioContext() {
     if (!this.audioContext) this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     return this.audioContext;
@@ -221,9 +212,6 @@ class HelloBro {
     s.connect(g); g.connect(ctx.destination); s.start();
   }
 
-  // ============================================
-  // ФОН ЧАТА
-  // ============================================
   applyChatBackground() {
     const c = document.getElementById('messages-container');
     if (!c) return;
@@ -237,9 +225,125 @@ class HelloBro {
     this.applyChatBackground();
   }
 
-  // ============================================
-  // ВХОД / РЕГИСТРАЦИЯ
-  // ============================================
+  // ==================== QR-FIRST LOGIN ====================
+  startQRLogin() {
+    if (this._qrSocket) { this._qrSocket.close(); this._qrSocket = null; }
+    this._qrSocket = io(window.location.origin);
+    this._qrSocket.on('connect', () => {
+      this._qrSocket.emit('qr:generate');
+    });
+    this._qrSocket.on('qr:generated', (data) => {
+      const c = document.getElementById('qr-code-container');
+      if (typeof QRCode !== 'undefined') {
+        c.innerHTML = '';
+        new QRCode(c, { text: JSON.stringify({ token: data.token, t: Date.now() }), width: 200, height: 200 });
+      } else {
+        c.innerHTML = `<p style="color:var(--text-secondary)">Токен: ${data.token}</p>`;
+      }
+      document.getElementById('qr-token').value = data.token;
+      document.getElementById('qr-status').textContent = 'Отсканируй QR-код приложением на Android';
+    });
+    this._qrSocket.on('qr:scanned', (data) => {
+      document.getElementById('qr-status').textContent = `Сканировано: ${data.username}`;
+      document.getElementById('qr-confirm-btn').style.display = 'block';
+      document.getElementById('qr-confirm-btn').dataset.sessionId = data.sessionId;
+    });
+    // Listen for user:joined on the QR socket (it arrives before qr:done)
+    this._qrSocket.on('user:joined', (data) => {
+      this.socket = this._qrSocket;
+      this._qrSocket = null;
+      this._bindSocketEvents();
+      this._handleJoinedData(data);
+    });
+    this._qrSocket.on('qr:done', (data) => {
+      document.getElementById('qr-status').textContent = `Подтверждено!`;
+      document.getElementById('qr-confirm-btn').style.display = 'none';
+    });
+  }
+
+  bindQRLayoutButtons() {
+    document.getElementById('qr-confirm-btn').addEventListener('click', () => {
+      const btn = document.getElementById('qr-confirm-btn');
+      const sessionId = btn.dataset.sessionId;
+      if (this._qrSocket && sessionId) {
+        this._qrSocket.emit('qr:confirm', { sessionId });
+      }
+    });
+    document.getElementById('btn-show-login-form').addEventListener('click', () => {
+      document.getElementById('qr-login-view').style.display = 'none';
+      document.getElementById('login-form-view').style.display = 'block';
+      if (this._qrSocket) { this._qrSocket.close(); this._qrSocket = null; }
+    });
+    document.getElementById('btn-show-qr').addEventListener('click', () => {
+      document.getElementById('qr-login-view').style.display = 'block';
+      document.getElementById('login-form-view').style.display = 'none';
+      this.startQRLogin();
+    });
+  }
+
+  _handleJoinedData(data) {
+    this.user = data.user;
+    this.onlineUsers = data.onlineUsers || [];
+    this.unreadCounts = data.unreadCounts || {};
+    if (data.user.theme) this.applyTheme(data.user.theme);
+
+    data.rooms.forEach(r => this.rooms.set(r.id, r));
+    (data.dms || []).forEach(r => {
+      this.rooms.set(r.id, r);
+      if (!this.dms.find(d => d.id === r.id)) this.dms.push(r);
+    });
+    this.channels = data.channels || [];
+    this.favorites = data.favorites || [];
+
+    this.showMainScreen();
+    this.updateMyProfile();
+    this.renderChatList();
+    this.renderUsersList();
+    this.renderContacts();
+    this.renderChannels();
+    this.renderFavorites();
+
+    data.messages.forEach(m => {
+      if (!this.messagesCache.has(m.room)) this.messagesCache.set(m.room, []);
+      this.messagesCache.get(m.room).push(m);
+      if (m.room === this.currentRoom) this.renderMessage(m);
+    });
+    this.scrollToBottom();
+    this.markAsRead('general');
+    this.applyChatBackground();
+
+    this.registerDevice();
+    this._bindFeatureSockets();
+
+    if (this._pendingInvite) {
+      this.joinByInvite(this._pendingInvite);
+      this._pendingInvite = null;
+    }
+  }
+
+  loginWithToken(token) {
+    // QR socket becomes the main socket after confirmation
+    this.socket = this._qrSocket;
+    this._qrSocket = null;
+    this._bindSocketEvents();
+  }
+
+  // ==================== SESSION RECONNECT ====================
+  tryReconnect() {
+    const token = localStorage.getItem('hb-session-token');
+    if (!token) return;
+    this.socket = io(window.location.origin);
+    this.socket.on('connect', () => {
+      this.socket.emit('user:reconnect', { sessionToken: token });
+    });
+    this._bindSocketEvents();
+    this.socket.on('auth:error', () => {
+      localStorage.removeItem('hb-session-token');
+      this.socket = null;
+    });
+  }
+
+  // ==================== LOGIN / REGISTER ====================
   bindLoginEvents() {
     document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -259,11 +363,23 @@ class HelloBro {
       if (!phone || !name || !username || !password) return;
       this.register(phone, name, username, password);
     });
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab + '-form').classList.add('active');
+        document.getElementById('login-error').textContent = '';
+        document.getElementById('reg-error').textContent = '';
+      });
+    });
   }
 
-  // ============================================
-  // ПОДКЛЮЧЕНИЕ К СЕРВЕРУ
-  // ============================================
+  togglePass(btn, id) {
+    const inp = document.getElementById(id);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
   login(phone, password) {
     this.socket = io(window.location.origin);
     this.socket.on('connect', () => {
@@ -280,39 +396,25 @@ class HelloBro {
     this._bindSocketEvents();
   }
 
+  // ==================== SOCKET EVENTS ====================
   _bindSocketEvents() {
     this.socket.on('auth:error', (data) => {
-      const loginErr = document.getElementById('login-error');
-      const regErr = document.getElementById('reg-error');
-      if (loginErr) loginErr.textContent = data.text;
-      if (regErr) regErr.textContent = data.text;
+      const le = document.getElementById('login-error');
+      const re = document.getElementById('reg-error');
+      if (le) le.textContent = data.text;
+      if (re) re.textContent = data.text;
     });
 
     this.socket.on('user:joined', (data) => {
-      this.user = data.user;
-      this.onlineUsers = data.onlineUsers || [];
-      this.unreadCounts = data.unreadCounts || {};
-      if (data.user.theme) this.applyTheme(data.user.theme);
-      this.showMainScreen();
-      this.updateMyProfile();
-      data.rooms.forEach(r => this.rooms.set(r.id, r));
-      this.renderChatList();
-      this.renderUsersList();
-      data.messages.forEach(m => this.renderMessage(m));
-      this.scrollToBottom();
-      this.markAsRead('general');
-      this.applyChatBackground();
-
-      this.registerDevice();
-      this._bindFeatureSockets();
-
-      if (this._pendingInvite) {
-        this.joinByInvite(this._pendingInvite);
-        this._pendingInvite = null;
+      this._handleJoinedData(data);
+      if (data.sessionToken) {
+        localStorage.setItem('hb-session-token', data.sessionToken);
       }
     });
 
     this.socket.on('message:new', (msg) => {
+      if (!this.messagesCache.has(msg.room)) this.messagesCache.set(msg.room, []);
+      this.messagesCache.get(msg.room).push(msg);
       if (msg.room === this.currentRoom) {
         this.renderMessage(msg);
         this.scrollToBottom();
@@ -325,7 +427,7 @@ class HelloBro {
         } else if (msg.sendSound !== 'none') {
           this.playSound('default');
         }
-        this.showBrowserNotification(msg.sender.displayName, msg.type === 'voice' ? '🎤 Голосовое' : (msg.content || 'Файл'));
+        this.showBrowserNotification(msg.sender.displayName, msg.type === 'voice' ? 'Голосовое' : (msg.content || 'Файл'));
       }
       this.renderChatList();
     });
@@ -341,7 +443,7 @@ class HelloBro {
       if (data.room === this.currentRoom) {
         document.querySelectorAll('.message.own .message-read-status.unread').forEach(el => {
           el.classList.remove('unread'); el.classList.add('read');
-          el.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 6 9 15 4 10"/><polyline points="22 6 13 15 8 10"/></svg>';
+          el.textContent = '0_0';
         });
       }
     });
@@ -378,7 +480,7 @@ class HelloBro {
       this.rooms.delete(data.roomId);
       if (this.currentRoom === data.roomId) this.switchRoom('general');
       this.renderChatList();
-      this.showNotification(`Группа "${data.roomName}" удалена`);
+      this.showNotification(`Группа удалена`);
     });
 
     this.socket.on('room:created', (room) => {
@@ -411,11 +513,32 @@ class HelloBro {
       if (data.room === this.currentRoom) this.updateMessageReactions(data.messageId, data.reactions);
     });
 
+    this.socket.on('messages:older', (data) => {
+      this._isLoadingOlder = false;
+      if (data.room !== this.currentRoom) return;
+      const container = document.getElementById('messages-list');
+      const prevScroll = container.scrollHeight;
+      data.messages.forEach(m => {
+        if (!this.messagesCache.has(data.room)) this.messagesCache.set(data.room, []);
+        this.messagesCache.get(data.room).unshift(m);
+      });
+      container.innerHTML = '';
+      this.messagesCache.get(data.room).forEach(m => this.renderMessage(m));
+      const newScroll = container.scrollHeight - prevScroll;
+      container.scrollTop = newScroll;
+      if (!data.hasMore) this._msgOffsets.set(data.room, -1);
+    });
+
     this.socket.on('room:joined', (data) => {
       if (!this.isJoiningRoom) return;
       this.rooms.set(data.room.id, data.room);
+      if (!this.messagesCache.has(data.room.id)) this.messagesCache.set(data.room.id, []);
+      this._msgOffsets.set(data.room.id, data.messages.length);
       document.getElementById('messages-list').innerHTML = '';
-      data.messages.forEach(m => this.renderMessage(m));
+      data.messages.forEach(m => {
+        this.messagesCache.get(data.room.id).push(m);
+        this.renderMessage(m);
+      });
       this.scrollToBottom();
       this.isJoiningRoom = false;
       if (data.room.pinnedMessage) this.loadPinnedMessage(data.room.pinnedMessage);
@@ -424,29 +547,85 @@ class HelloBro {
 
     this.socket.on('dm:opened', (data) => {
       this.rooms.set(data.room.id, data.room);
+      if (!this.dms.find(d => d.id === data.room.id)) this.dms.push(data.room);
+      if (!this.messagesCache.has(data.room.id)) this.messagesCache.set(data.room.id, []);
+      this._msgOffsets.set(data.room.id, data.messages.length);
       this.currentRoom = data.room.id;
       this.updateChatHeader(data.room);
       document.getElementById('messages-list').innerHTML = '';
-      data.messages.forEach(m => this.renderMessage(m));
+      data.messages.forEach(m => {
+        this.messagesCache.get(data.room.id).push(m);
+        this.renderMessage(m);
+      });
       this.scrollToBottom();
       this.renderChatList();
+      this.renderContacts();
+    });
+
+    // ===== CHANNEL SOCKETS =====
+    this.socket.on('channels:list', (channels) => {
+      this._publicChannels = channels;
+      this.renderChannels();
+    });
+
+    this.socket.on('channels:list-subscribed', (channels) => {
+      this.channels = channels;
+      this.renderChannels();
+    });
+
+    this.socket.on('channel:created', (channel) => {
+      this.channels.push(channel);
+      this.renderChannels();
+      this.showNotification(`Канал создан`);
+    });
+
+    this.socket.on('channel:subscribed', (data) => {
+      const ch = this._publicChannels?.find(c => c.channelId === data.channelId);
+      if (ch) {
+        ch.subscribers = (ch.subscribers || 0) + 1;
+        this.renderChannels();
+      }
+    });
+
+    this.socket.on('channel:unsubscribed', (data) => {
+      this.channels = this.channels.filter(c => c.channelId !== data.channelId);
+      this.renderChannels();
+    });
+
+    // ===== FAVORITES SOCKETS =====
+    this.socket.on('favorites:added', (data) => {
+      this.showNotification('Добавлено в избранное');
+      if (this.socket) this.socket.emit('favorites:list');
+    });
+
+    this.socket.on('favorites:removed', (data) => {
+      this.favorites = this.favorites.filter(f => f.id !== data.id);
+      this.renderFavorites();
+    });
+
+    this.socket.on('favorites:list', (favs) => {
+      this.favorites = favs;
+      this.renderFavorites();
+    });
+
+    // ===== CONTACTS =====
+    this.socket.on('contacts:list', (contacts) => {
+      this.contacts = contacts;
+      this.renderContacts();
     });
 
     this.socket.on('messages:search-results', (data) => this.renderSearchResults(data.results, data.query));
     this.socket.on('profile:updated', (u) => { this.user = u; this.updateMyProfile(); });
     this.socket.on('profile:data', (p) => this.showProfilePopup(p));
     this.socket.on('error:message', (d) => this.showNotification(d.text));
-    this.socket.on('user:blocked', (d) => this.showNotification(`${d.username} заблокирован`));
-    this.socket.on('user:unblocked', (d) => this.showNotification(`${d.username} разблокирован`));
+    this.socket.on('user:blocked', (d) => this.showNotification(`Заблокирован ${d.username}`));
+    this.socket.on('user:unblocked', (d) => this.showNotification(`Разблокирован ${d.username}`));
     this.socket.on('stats:data', (d) => this.showStatsModal(d));
-
-    // Игры
     this.socket.on('game:tictactoe:updated', (game) => this.updateTicTacToe(game));
     this.socket.on('game:rps:result', (game) => this.showRPSResult(game));
     this.socket.on('game:rps:waiting', () => this.showNotification('Ожидаем ход соперника...'));
     this.socket.on('poll:updated', (data) => this.updatePoll(data));
-
-    this.socket.on('disconnect', () => console.log('🔴 Отключено'));
+    this.socket.on('disconnect', () => console.log('Disconnected'));
   }
 
   markAsRead(room) {
@@ -468,7 +647,7 @@ class HelloBro {
     this.setAvatarElement(av, this.user);
   }
 
-  setAvatarElement(el, user, size) {
+  setAvatarElement(el, user) {
     if (user.avatar && user.avatar.startsWith('http')) {
       el.style.background = `url(${user.avatar}) center/cover`;
       el.innerHTML = '';
@@ -481,30 +660,19 @@ class HelloBro {
     }
   }
 
-  // ============================================
-  // ФОРМАТИРОВАНИЕ ТЕКСТА
-  // ============================================
   formatText(text) {
     if (!text) return '';
     let html = this.escapeHTML(text);
-    // **жирный**
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // *курсив*
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    // `код`
     html = html.replace(/`(.+?)`/g, '<code>$1</code>');
-    // ~~зачёркнутый~~
     html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-    // __подчёркнутый__
     html = html.replace(/__(.+?)__/g, '<u>$1</u>');
-    // Ссылки
     html = html.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="msg-link">$1</a>');
     return html;
   }
 
-  // ============================================
-  // ЗАКРЕПЛЁННЫЕ
-  // ============================================
+  // ==================== PINNED ====================
   showPinnedMessage(data) {
     const bar = document.getElementById('pinned-bar');
     if (!bar) return;
@@ -529,9 +697,7 @@ class HelloBro {
     }
   }
 
-  // ============================================
-  // СОБЫТИЯ ЧАТА
-  // ============================================
+  // ==================== CHAT EVENTS ====================
   bindChatEvents() {
     const input = document.getElementById('message-input');
     input.addEventListener('keydown', (e) => {
@@ -545,23 +711,18 @@ class HelloBro {
     });
 
     document.getElementById('btn-new-group').addEventListener('click', () => this.showGroupModal());
-    document.getElementById('btn-close-modal').addEventListener('click', () => document.getElementById('modal-new-group').style.display = 'none');
-    document.getElementById('btn-cancel-group').addEventListener('click', () => document.getElementById('modal-new-group').style.display = 'none');
-    document.getElementById('btn-create-group').addEventListener('click', () => this.createGroup());
     document.getElementById('btn-cancel-reply').addEventListener('click', () => this.cancelReply());
+    document.getElementById('btn-create-group').addEventListener('click', () => this.createGroup());
 
-    // Горячие клавиши
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey && e.key === 'k') { e.preventDefault(); document.getElementById('search-input').focus(); }
-      if (e.ctrlKey && e.key === 'b') { e.preventDefault(); this.insertFormat('**'); }
-      if (e.ctrlKey && e.key === 'i') { e.preventDefault(); this.insertFormat('*'); }
       if (e.key === 'Escape') {
         document.getElementById('emoji-picker').style.display = 'none';
         document.getElementById('sound-dropdown').classList.remove('show');
         this.cancelReply();
         document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
         const sr = document.getElementById('search-results');
-        if (sr?.style.display !== 'none') {
+        if (sr && sr.style.display !== 'none') {
           sr.style.display = 'none';
           document.getElementById('chat-list').style.display = 'block';
           document.getElementById('search-input').value = '';
@@ -570,18 +731,33 @@ class HelloBro {
     });
   }
 
-  insertFormat(marker) {
-    const input = document.getElementById('message-input');
-    const start = input.selectionStart, end = input.selectionEnd;
-    const selected = input.value.substring(start, end);
-    input.value = input.value.substring(0, start) + marker + selected + marker + input.value.substring(end);
-    input.focus();
-    input.selectionStart = input.selectionEnd = start + marker.length + selected.length + marker.length;
+  // ==================== SIDEBAR TABS ====================
+  bindSidebarTabs() {
+    document.querySelectorAll('.sidebar-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        if (tab.dataset.tab === 'contacts' && this.socket) {
+          this.socket.emit('contacts:list');
+        }
+        if (tab.dataset.tab === 'channels' && this.socket) {
+          this.socket.emit('channels:list');
+          this.socket.emit('channels:list-subscribed');
+        }
+        if (tab.dataset.tab === 'favorites' && this.socket) {
+          this.socket.emit('favorites:list');
+        }
+      });
+    });
   }
 
-  // ============================================
-  // ПОИСК
-  // ============================================
+  toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+  }
+
+  // ==================== SEARCH ====================
   bindSearch() {
     const si = document.getElementById('search-input');
     let t;
@@ -590,14 +766,12 @@ class HelloBro {
       const q = si.value.trim();
       if (!q) {
         document.getElementById('search-results').style.display = 'none';
-        document.getElementById('chat-list').style.display = 'block';
         return;
       }
-      t = setTimeout(() => this.socket.emit('messages:search', { query: q }), 300);
+      t = setTimeout(() => this.socket?.emit('messages:search', { query: q }), 300);
     });
     document.getElementById('btn-close-search').addEventListener('click', () => {
       document.getElementById('search-results').style.display = 'none';
-      document.getElementById('chat-list').style.display = 'block';
       si.value = '';
     });
   }
@@ -607,9 +781,8 @@ class HelloBro {
     const p = document.getElementById('search-results');
     c.innerHTML = '';
     p.style.display = 'block';
-    document.getElementById('chat-list').style.display = 'none';
     if (!results.length) {
-      c.innerHTML = '<div class="search-no-results"><i class="fas fa-search"></i><p>Ничего не найдено</p></div>';
+      c.innerHTML = '<div class="search-no-results">Ничего не найдено</div>';
       return;
     }
     results.forEach(msg => {
@@ -621,7 +794,6 @@ class HelloBro {
       item.addEventListener('click', () => {
         this.switchRoom(msg.roomId);
         p.style.display = 'none';
-        document.getElementById('chat-list').style.display = 'block';
         document.getElementById('search-input').value = '';
       });
       c.appendChild(item);
@@ -630,9 +802,7 @@ class HelloBro {
 
   escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-  // ============================================
-  // ГОЛОСОВЫЕ
-  // ============================================
+  // ==================== VOICE RECORDING ====================
   bindVoiceRecording() {
     document.getElementById('btn-voice').addEventListener('click', () => this.startRecording());
     document.getElementById('btn-cancel-voice').addEventListener('click', () => this.cancelRecording());
@@ -678,7 +848,7 @@ class HelloBro {
       try {
         const r = await fetch('/upload', { method: 'POST', body: fd });
         const fi = await r.json();
-        this.socket.emit('message:send', { type: 'voice', content: '🎤 Голосовое', room: this.currentRoom, sendSound: this.selectedSound, file: fi, duration: dur });
+        this.socket.emit('message:send', { type: 'voice', content: 'Голосовое', room: this.currentRoom, sendSound: this.selectedSound, file: fi, duration: dur });
       } catch (e) { this.showNotification('Ошибка отправки'); }
     };
     this.mediaRecorder.stop();
@@ -689,25 +859,19 @@ class HelloBro {
     document.getElementById('btn-voice').style.display = 'flex';
   }
 
-    // ============================================
-  // ОТПРАВКА / РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ
-  // ============================================
+  // ==================== SEND / EDIT / DELETE ====================
   sendMessage() {
     const input = document.getElementById('message-input');
     const content = input.value.trim();
     if (!content) return;
-
     const msgData = {
       type: 'text', content, room: this.currentRoom,
       sendSound: this.selectedSound, replyTo: this.replyingTo
     };
-
-    // Исчезающие сообщения
     const expSelect = document.getElementById('expire-select');
     if (expSelect && expSelect.value !== '0') {
       msgData.expiresIn = parseInt(expSelect.value);
     }
-
     this.socket.emit('message:send', msgData);
     input.value = ''; input.style.height = 'auto';
     this.cancelReply();
@@ -731,7 +895,7 @@ class HelloBro {
     const el = document.querySelector(`[data-message-id="${id}"]`);
     if (!el) return;
     const t = el.querySelector('.message-text')?.textContent || '';
-    navigator.clipboard.writeText(t).then(() => this.showNotification('Скопировано ✅'));
+    navigator.clipboard.writeText(t).then(() => this.showNotification('Скопировано'));
   }
 
   forwardMessage(id) { this.showForwardModal(id); }
@@ -741,7 +905,7 @@ class HelloBro {
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'modal-forward'; modal.className = 'modal';
-      modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3><i class="fas fa-share"></i> Переслать</h3><button class="btn-icon" onclick="document.getElementById('modal-forward').style.display='none'"><i class="fas fa-times"></i></button></div><div class="modal-body"><div id="forward-rooms-list" class="forward-rooms-list"></div></div></div>`;
+      modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3>Переслать</h3><button class="btn-icon" onclick="this.closest('.modal').style.display='none'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="modal-body"><div id="forward-rooms-list" class="forward-rooms-list"></div></div></div>`;
       document.body.appendChild(modal);
     }
     const list = document.getElementById('forward-rooms-list');
@@ -750,11 +914,12 @@ class HelloBro {
       if (room.id === this.currentRoom) return;
       const item = document.createElement('div');
       item.className = 'chat-item'; item.style.cursor = 'pointer';
-      item.innerHTML = `<div class="avatar-small">${(room.name[0] || '💬').toUpperCase()}</div><div class="chat-item-info"><div class="chat-item-name">${room.name}</div></div>`;
+      const ini = room.name.replace(/[^\w\u0400-\u04FF]/g, '').charAt(0).toUpperCase() || '💬';
+      item.innerHTML = `<div class="avatar-small">${ini}</div><div class="chat-item-info"><div class="chat-item-name">${room.name}</div></div>`;
       item.addEventListener('click', () => {
         this.socket.emit('message:forward', { messageId, targetRoom: room.id });
         modal.style.display = 'none';
-        this.showNotification('Переслано ✅');
+        this.showNotification('Переслано');
       });
       list.appendChild(item);
     });
@@ -777,9 +942,7 @@ class HelloBro {
     this.socket.emit('room:delete', { roomId: this.currentRoom });
   }
 
-  // ============================================
-  // РЕНДЕР СООБЩЕНИЙ
-  // ============================================
+  // ==================== RENDER MESSAGES ====================
   renderMessage(msg) {
     const container = document.getElementById('messages-list');
     const id = msg.messageId || msg.id;
@@ -810,24 +973,24 @@ class HelloBro {
     let soundHTML = '';
     if (msg.sendSound && msg.sendSound !== 'default' && msg.sendSound !== 'none') {
       const s = this.soundMap[msg.sendSound];
-      soundHTML = `<div class="message-sound-badge" onclick="app.playSound('${msg.sendSound}')""><i class="fas fa-music"></i> ${s?.emoji} ${s?.name}</div>`;
+      soundHTML = `<div class="message-sound-badge" onclick="app.playSound('${msg.sendSound}')">${s?.name}</div>`;
     }
 
     let forwardHTML = '';
     if (msg.forwarded) {
-      forwardHTML = `<div class="forwarded-tag"><i class="fas fa-share"></i> Переслано от ${msg.forwardedFrom || 'пользователя'}</div>`;
+      forwardHTML = `<div class="forwarded-tag">Переслано от ${msg.forwardedFrom || 'пользователя'}</div>`;
     }
 
     let voiceHTML = '';
     if (msg.type === 'voice' && msg.file) {
       const dur = msg.duration || 0;
       const m = Math.floor(dur / 60), s = dur % 60;
-      voiceHTML = `<div class="voice-message"><button class="voice-play-btn" onclick="app.playVoice(this,'${msg.file.url}')"><i class="fas fa-play"></i></button><div class="voice-waveform">${this.generateWaveform()}</div><span class="voice-duration">${m}:${s.toString().padStart(2,'0')}</span></div>`;
+      voiceHTML = `<div class="voice-message"><button class="voice-play-btn" onclick="app.playVoice(this,'${msg.file.url}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button><div class="voice-waveform">${this.generateWaveform()}</div><span class="voice-duration">${m}:${s.toString().padStart(2,'0')}</span></div>`;
     }
 
     let videoCircleHTML = '';
     if (msg.type === 'video_circle' && msg.file) {
-      videoCircleHTML = `<div class="video-circle-msg" onclick="this.querySelector('video').classList.toggle('playing');this.querySelector('video').paused?this.querySelector('video').play():this.querySelector('video').pause()"><video src="${msg.file.url}" loop muted playsinline preload="metadata"></video><div class="play-overlay"><i class="fas fa-play"></i></div></div>`;
+      videoCircleHTML = `<div class="video-circle-msg" onclick="this.querySelector('video').classList.toggle('playing');this.querySelector('video').paused?this.querySelector('video').play():this.querySelector('video').pause()"><video src="${msg.file.url}" loop muted playsinline preload="metadata"></video><div class="play-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>`;
     }
 
     let fileHTML = '';
@@ -835,41 +998,42 @@ class HelloBro {
       if (msg.file.mimetype?.startsWith('image/')) {
         fileHTML = `<img src="${msg.file.url}" class="message-image" onclick="window.open('${msg.file.url}','_blank')">`;
       } else {
-        fileHTML = `<div class="message-file"><i class="fas fa-file"></i><div class="message-file-info"><div class="message-file-name">${msg.file.originalName}</div><div class="message-file-size">${this.formatSize(msg.file.size)}</div></div><a href="${msg.file.url}" download class="btn-icon btn-small"><i class="fas fa-download"></i></a></div>`;
+        fileHTML = `<div class="message-file"><div class="message-file-info"><div class="message-file-name">${msg.file.originalName}</div><div class="message-file-size">${this.formatSize(msg.file.size)}</div></div><a href="${msg.file.url}" download class="btn-icon btn-small"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a></div>`;
       }
     }
 
     let replyHTML = '';
     if (msg.replyTo) {
-      replyHTML = `<div class="reply-preview" style="margin-bottom:6px;padding:6px 10px;"><div class="reply-content"><i class="fas fa-reply"></i><span>${(msg.replyTo.content || '').substring(0, 50)}</span></div></div>`;
+      replyHTML = `<div class="reply-preview" style="margin-bottom:6px;padding:6px 10px;"><div class="reply-content"><span>${(msg.replyTo.content || '').substring(0, 50)}</span></div></div>`;
     }
 
     const reactionsHTML = this.renderReactions(id, msg.reactions);
     const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
     const edited = msg.edited ? ' <span class="edited-tag">(ред.)</span>' : '';
-    const expiring = msg.expiresAt ? ' <i class="fas fa-clock expire-icon" title="Исчезающее"></i>' : '';
 
     let readHTML = '';
     if (isOwn && msg.type !== 'system') {
       const read = msg.readBy?.length > 0;
-      readHTML = `<span class="message-read-status ${read ? 'read' : 'unread'}"><i class="fas fa-${read ? 'check-double' : 'check'}"></i></span>`;
+      readHTML = `<span class="message-read-status ${read ? 'read' : 'unread'}">${read ? '0_0' : '-_-'}</span>`;
     }
 
     let actionsHTML;
     if (isOwn) {
       actionsHTML = `
-        <button class="btn-msg-action" onclick="app.editMessage('${id}')" title="Редактировать"><i class="fas fa-pen"></i></button>
-        <button class="btn-msg-action" onclick="app.copyMessage('${id}')" title="Копировать"><i class="fas fa-copy"></i></button>
-        <button class="btn-msg-action" onclick="app.pinMessage('${id}')" title="Закрепить"><i class="fas fa-thumbtack"></i></button>
-        <button class="btn-msg-action" onclick="app.forwardMessage('${id}')" title="Переслать"><i class="fas fa-share"></i></button>
-        <button class="btn-msg-action btn-delete-msg" onclick="app.deleteMessage('${id}')" title="Удалить"><i class="fas fa-trash"></i></button>`;
+        <button class="btn-msg-action" onclick="app.editMessage('${id}')" title="Ред."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="btn-msg-action" onclick="app.copyMessage('${id}')" title="Коп."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        <button class="btn-msg-action" onclick="app.pinMessage('${id}')" title="Закр."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></button>
+        <button class="btn-msg-action" onclick="app.forwardMessage('${id}')" title="Пер."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+        <button class="btn-msg-action btn-delete-msg" onclick="app.deleteMessage('${id}')" title="Уд."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>`;
     } else {
       actionsHTML = `
-        <button class="btn-msg-action" onclick="app.copyMessage('${id}')" title="Копировать"><i class="fas fa-copy"></i></button>
-        <button class="btn-msg-action" onclick="app.pinMessage('${id}')" title="Закрепить"><i class="fas fa-thumbtack"></i></button>
-        <button class="btn-msg-action" onclick="app.forwardMessage('${id}')" title="Переслать"><i class="fas fa-share"></i></button>
-        <button class="btn-msg-action" onclick="app.setReply('${id}','${this.escapeAttr(msg.content)}')" title="Ответить"><i class="fas fa-reply"></i></button>`;
+        <button class="btn-msg-action" onclick="app.copyMessage('${id}')" title="Коп."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+        <button class="btn-msg-action" onclick="app.pinMessage('${id}')" title="Закр."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></button>
+        <button class="btn-msg-action" onclick="app.forwardMessage('${id}')" title="Пер."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+        <button class="btn-msg-action" onclick="app.setReply('${id}','${this.escapeAttr(msg.content)}')" title="Ответ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg></button>`;
     }
+
+    const addFavBtn = `<button class="btn-msg-action" onclick="app.addToFavorites('${id}')" title="Избр."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button>`;
 
     const contentHTML = msg.content && msg.type !== 'voice' ? `<div class="message-text">${this.formatText(msg.content)}${edited}</div>` : '';
 
@@ -877,16 +1041,20 @@ class HelloBro {
       <div class="message-bubble">
         ${!isOwn ? `<div class="message-sender" style="cursor:pointer" onclick="app.startDM('${msg.sender.username}')">${msg.sender.displayName}</div>` : ''}
         ${forwardHTML}${soundHTML}${replyHTML}${contentHTML}${voiceHTML}${videoCircleHTML}${fileHTML}${reactionsHTML}
-        <div class="message-footer"><span class="message-time">${time}${expiring}</span>${readHTML}</div>
-        <div class="message-actions">${actionsHTML}</div>
+        <div class="message-footer"><span class="message-time">${time}</span>${readHTML}</div>
+        <div class="message-actions">${addFavBtn}${actionsHTML}</div>
         <div class="reaction-picker">
           <span onclick="app.react('${id}','❤️')">❤️</span><span onclick="app.react('${id}','😂')">😂</span>
           <span onclick="app.react('${id}','👍')">👍</span><span onclick="app.react('${id}','😮')">😮</span>
           <span onclick="app.react('${id}','😢')">😢</span><span onclick="app.react('${id}','🔥')">🔥</span>
-          <span onclick="app.react('${id}','💀')">💀</span><span onclick="app.react('${id}','🗿')">🗿</span>
+          <span onclick="app.react('${id}','💀')">💀</span>
         </div>
       </div>`;
     container.appendChild(div);
+  }
+
+  addToFavorites(messageId) {
+    if (this.socket) this.socket.emit('favorites:add', { messageId });
   }
 
   escapeAttr(s) { return (s || '').replace(/'/g, "\\'").replace(/\n/g, ' ').substring(0, 50); }
@@ -898,10 +1066,10 @@ class HelloBro {
   }
 
   playVoice(btn, url) {
-    const a = new Audio(url), ic = btn.querySelector('i');
-    if (btn.dataset.playing === 'true') { btn.dataset.playing = 'false'; ic.className = 'fas fa-play'; if (btn._a) btn._a.pause(); return; }
-    btn.dataset.playing = 'true'; ic.className = 'fas fa-pause'; btn._a = a; a.play();
-    a.onended = () => { btn.dataset.playing = 'false'; ic.className = 'fas fa-play'; };
+    const a = new Audio(url), ic = btn.querySelector('svg');
+    if (btn.dataset.playing === 'true') { btn.dataset.playing = 'false'; ic.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>'; if (btn._a) btn._a.pause(); return; }
+    btn.dataset.playing = 'true'; ic.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'; btn._a = a; a.play();
+    a.onended = () => { btn.dataset.playing = 'false'; ic.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>'; };
   }
 
   renderReactions(id, reactions) {
@@ -925,27 +1093,25 @@ class HelloBro {
 
   react(id, emoji) { this.socket.emit('message:react', { messageId: id, emoji, room: this.currentRoom }); }
 
-  // ============================================
-  // ОПРОСЫ
-  // ============================================
+  // ==================== POLLS ====================
   showPollModal() {
     let modal = document.getElementById('modal-poll');
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'modal-poll'; modal.className = 'modal';
-      modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3><i class="fas fa-poll"></i> Создать опрос</h3><button class="btn-icon" onclick="document.getElementById('modal-poll').style.display='none'"><i class="fas fa-times"></i></button></div>
+      modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3>Создать опрос</h3><button class="btn-icon" onclick="this.closest('.modal').style.display='none'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
       <div class="modal-body">
-        <div class="input-group"><i class="fas fa-question"></i><input type="text" id="poll-question" placeholder="Вопрос"></div>
-        <div id="poll-options-list"><div class="input-group"><i class="fas fa-circle"></i><input type="text" class="poll-option-input" placeholder="Вариант 1"></div><div class="input-group"><i class="fas fa-circle"></i><input type="text" class="poll-option-input" placeholder="Вариант 2"></div></div>
-        <button class="btn-secondary" onclick="app.addPollOption()" style="margin:8px 0;width:100%"><i class="fas fa-plus"></i> Добавить вариант</button>
+        <div class="input-group"><input type="text" id="poll-question" placeholder="Вопрос"></div>
+        <div id="poll-options-list"><div class="input-group"><input type="text" class="poll-option-input" placeholder="Вариант 1"></div><div class="input-group"><input type="text" class="poll-option-input" placeholder="Вариант 2"></div></div>
+        <button class="btn-secondary" onclick="app.addPollOption()" style="margin:8px 0;width:100%">+ Добавить вариант</button>
         <label class="checkbox-label"><input type="checkbox" id="poll-multiple"> Несколько ответов</label>
         <label class="checkbox-label"><input type="checkbox" id="poll-anon"> Анонимное</label>
       </div>
-      <div class="modal-footer"><button class="btn-secondary" onclick="document.getElementById('modal-poll').style.display='none'">Отмена</button><button class="btn-primary" onclick="app.createPoll()">Создать</button></div></div>`;
+      <div class="modal-footer"><button class="btn-secondary" onclick="this.closest('.modal').style.display='none'">Отмена</button><button class="btn-primary" onclick="app.createPoll()">Создать</button></div></div>`;
       document.body.appendChild(modal);
     }
     document.getElementById('poll-question').value = '';
-    document.getElementById('poll-options-list').innerHTML = `<div class="input-group"><i class="fas fa-circle"></i><input type="text" class="poll-option-input" placeholder="Вариант 1"></div><div class="input-group"><i class="fas fa-circle"></i><input type="text" class="poll-option-input" placeholder="Вариант 2"></div>`;
+    document.getElementById('poll-options-list').innerHTML = `<div class="input-group"><input type="text" class="poll-option-input" placeholder="Вариант 1"></div><div class="input-group"><input type="text" class="poll-option-input" placeholder="Вариант 2"></div>`;
     modal.style.display = 'flex';
   }
 
@@ -954,7 +1120,7 @@ class HelloBro {
     const count = list.querySelectorAll('.poll-option-input').length + 1;
     const div = document.createElement('div');
     div.className = 'input-group';
-    div.innerHTML = `<i class="fas fa-circle"></i><input type="text" class="poll-option-input" placeholder="Вариант ${count}">`;
+    div.innerHTML = `<input type="text" class="poll-option-input" placeholder="Вариант ${count}">`;
     list.appendChild(div);
   }
 
@@ -987,16 +1153,14 @@ class HelloBro {
         <span class="poll-option-pct">${pct}% (${votes})</span></div>`;
     });
     div.innerHTML = `<div class="poll-card" data-poll-id="${pd.pollId}">
-      <div class="poll-header"><i class="fas fa-poll"></i> Опрос от ${msg.sender.displayName}</div>
+      <div class="poll-header">Опрос от ${msg.sender.displayName}</div>
       <div class="poll-question">${pd.question}</div>
       <div class="poll-options">${optsHTML}</div>
       <div class="poll-footer">${totalVotes} голосов</div></div>`;
     container.appendChild(div);
   }
 
-  votePoll(pollId, optionIndex) {
-    this.socket.emit('poll:vote', { pollId, optionIndex });
-  }
+  votePoll(pollId, optionIndex) { this.socket.emit('poll:vote', { pollId, optionIndex }); }
 
   updatePoll(data) {
     const card = document.querySelector(`[data-poll-id="${data.pollId}"]`);
@@ -1017,20 +1181,18 @@ class HelloBro {
     card.querySelector('.poll-footer').textContent = `${totalVotes} голосов`;
   }
 
-  // ============================================
-  // МИНИ-ИГРЫ
-  // ============================================
+  // ==================== GAMES ====================
   showGamesMenu() {
     let modal = document.getElementById('modal-games');
     if (!modal) {
       modal = document.createElement('div');
       modal.id = 'modal-games'; modal.className = 'modal';
-      modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3><i class="fas fa-gamepad"></i> Игры</h3><button class="btn-icon" onclick="document.getElementById('modal-games').style.display='none'"><i class="fas fa-times"></i></button></div>
+      modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3>Игры</h3><button class="btn-icon" onclick="this.closest('.modal').style.display='none'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
       <div class="modal-body">
         <div class="games-list">
-          <div class="game-card" onclick="app.startTicTacToe()"><i class="fas fa-th"></i><span>Крестики-нолики</span></div>
-          <div class="game-card" onclick="app.startRPS()"><i class="fas fa-hand-rock"></i><span>Камень-Ножницы-Бумага</span></div>
-          <div class="game-card" onclick="app.rollDice()"><i class="fas fa-dice"></i><span>Бросить кубик</span></div>
+          <div class="game-card" onclick="app.startTicTacToe()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><span>Крестики-нолики</span></div>
+          <div class="game-card" onclick="app.startRPS()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 9 8 12 13c3-5 5-9 7.5-9a2.5 2.5 0 010 5H18"/><path d="M4 22h16"/><path d="M12 22V9"/></svg><span>Камень-Ножницы-Бумага</span></div>
+          <div class="game-card" onclick="app.rollDice()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/></svg><span>Бросить кубик</span></div>
         </div>
       </div></div>`;
       document.body.appendChild(modal);
@@ -1063,11 +1225,11 @@ class HelloBro {
       boardHTML += '</div>';
       const status = gd.winner ? (gd.winner === 'draw' ? 'Ничья!' : `Победил ${gd.winner}!`) : `Ход: ${gd.currentTurn}`;
       div.innerHTML = `<div class="game-card-msg" data-game-id="${gd.id}">
-        <div class="game-header"><i class="fas fa-th"></i> Крестики-нолики</div>
+        <div class="game-header">Крестики-нолики</div>
         ${boardHTML}<div class="game-status">${status}</div></div>`;
     } else if (gd.type === 'rps') {
       div.innerHTML = `<div class="game-card-msg" data-game-id="${gd.id || gd.gameId}">
-        <div class="game-header"><i class="fas fa-hand-rock"></i> Камень-Ножницы-Бумага</div>
+        <div class="game-header">Камень-Ножницы-Бумага</div>
         <div class="rps-choices">
           <button class="rps-btn" onclick="app.rpsChoose('${gd.id || gd.gameId}','rock')">🪨</button>
           <button class="rps-btn" onclick="app.rpsChoose('${gd.id || gd.gameId}','scissors')">✂️</button>
@@ -1087,8 +1249,8 @@ class HelloBro {
     game.board.forEach((v, i) => { cells[i].textContent = v || ''; cells[i].className = `ttt-cell ${v ? 'filled' : ''}`; });
     const status = card.querySelector('.game-status');
     if (game.winner) {
-      if (game.winner === 'draw') status.textContent = '🤝 Ничья!';
-      else status.textContent = `🏆 Победил ${game.winner}!`;
+      if (game.winner === 'draw') status.textContent = 'Ничья!';
+      else status.textContent = `Победил ${game.winner}!`;
     } else {
       status.textContent = `Ход: ${game.currentTurn}`;
     }
@@ -1111,9 +1273,9 @@ class HelloBro {
     const players = Object.keys(game.players);
     const choices = { rock: '🪨', scissors: '✂️', paper: '📄' };
     let result;
-    if (game.winner === 'draw') result = '🤝 Ничья!';
-    else result = `🏆 ${game.playerNames[game.winner] || game.winner} победил!`;
-    this.showNotification(`${choices[game.players[players[0]]]} vs ${choices[game.players[players[1]]]} — ${result}`);
+    if (game.winner === 'draw') result = 'Ничья!';
+    else result = `${game.playerNames[game.winner] || game.winner} победил!`;
+    this.showNotification(`${choices[game.players[players[0]]]} vs ${choices[game.players[players[1]]} — ${result}`);
   }
 
   rollDice() {
@@ -1121,9 +1283,7 @@ class HelloBro {
     this.socket.emit('game:dice', { room: this.currentRoom });
   }
 
-  // ============================================
-  // HOVER ПРОФИЛЬ
-  // ============================================
+  // ==================== HOVER PROFILE ====================
   onAvatarHover(username, e) {
     clearTimeout(this.hoverTimeout);
     this.hoverTimeout = setTimeout(() => {
@@ -1160,15 +1320,15 @@ class HelloBro {
       ${profile.activityStatus ? `<div class="hover-profile-activity">${profile.activityStatus}</div>` : ''}
       ${profile.bio ? `<div class="hover-profile-bio">${profile.bio}</div>` : ''}
       ${profile.statusText ? `<div class="hover-profile-status">${profile.statusText}</div>` : ''}
-      <div class="hover-profile-online">${isOnline ? '🟢 В сети' : `⚫ Был(а) ${lastSeen}`}</div>
+      <div class="hover-profile-online">${isOnline ? 'В сети' : `Был(а) ${lastSeen}`}</div>
       <div class="hover-profile-actions">
         <button class="btn-primary btn-small-full" onclick="app.startDM('${profile.username}');document.getElementById('profile-hover-popup').style.display='none'">
-          <i class="fas fa-comment"></i> Написать</button></div>`;
+          Написать</button></div>`;
 
     if (this._hoverEvent) {
       const r = this._hoverEvent.target.getBoundingClientRect();
       p.style.top = Math.min(r.top - 10, window.innerHeight - 280) + 'px';
-      p.style.left = (r.right + 10 + 260 > window.innerWidth ? r.left - 260 : r.right + 10) + 'px';
+      p.style.left = (r.right + 10 + 240 > window.innerWidth ? r.left - 240 : r.right + 10) + 'px';
     }
     p.style.display = 'block';
   }
@@ -1179,9 +1339,7 @@ class HelloBro {
     this.socket.emit('dm:start', { username });
   }
 
-  // ============================================
-  // СПИСОК ЧАТОВ
-  // ============================================
+  // ==================== CHAT LIST ====================
   renderChatList() {
     const c = document.getElementById('chat-list');
     c.innerHTML = '';
@@ -1194,7 +1352,7 @@ class HelloBro {
       const badge = unread > 0 ? `<div class="unread-badge">${unread > 99 ? '99+' : unread}</div>` : '';
       item.innerHTML = `<div class="avatar-small">${initial}</div>
         <div class="chat-item-info"><div class="chat-item-name">${room.name}</div>
-        <div class="chat-item-last">${room.type === 'direct' ? 'Личные сообщения' : `👥 ${online} в сети`}</div></div>${badge}`;
+        <div class="chat-item-last">${room.type === 'direct' ? 'Личные сообщения' : `${online} в сети`}</div></div>${badge}`;
       item.addEventListener('click', () => { if (this.currentRoom !== room.id) this.switchRoom(room.id); });
       c.appendChild(item);
     });
@@ -1202,7 +1360,7 @@ class HelloBro {
 
   getOnlineCountForRoom(room) {
     const on = this.onlineUsers.map(u => u.username);
-    return room.members.filter(m => on.includes(m)).length;
+    return room.members?.filter(m => on.includes(m)).length || 0;
   }
 
   switchRoom(roomId) {
@@ -1214,12 +1372,42 @@ class HelloBro {
     this.markAsRead(roomId);
     this.renderChatList();
     setTimeout(() => this.isJoiningRoom = false, 3000);
+
+    // Scroll-to-top pagination
+    const msgList = document.getElementById('messages-list');
+    if (msgList._scrollHandler) msgList.removeEventListener('scroll', msgList._scrollHandler);
+    msgList._scrollHandler = () => {
+      if (msgList.scrollTop > 50) return;
+      if (this._isLoadingOlder) return;
+      const offset = this._msgOffsets.get(this.currentRoom);
+      if (offset == null || offset < 0) return;
+      this._isLoadingOlder = true;
+      this.socket.emit('messages:load-older', { room: this.currentRoom, offset });
+      this._msgOffsets.set(this.currentRoom, offset + 50);
+    };
+    msgList.addEventListener('scroll', msgList._scrollHandler);
   }
 
   updateChatHeader(room) {
     if (!room) return;
     document.getElementById('chat-name').textContent = room.name;
-    this.updateChatSubtitle();
+    const roomType = room.type;
+    if (roomType === 'direct') {
+      const other = room.members?.find(m => m !== this.user?.username);
+      document.getElementById('chat-subtitle').textContent = this.onlineUsers.some(u => u.username === other) ? 'В сети' : 'Не в сети';
+    } else if (room.id && room.id.startsWith('ch-')) {
+      document.getElementById('chat-subtitle').textContent = 'Канал';
+    } else {
+      document.getElementById('chat-subtitle').textContent = `${this.getOnlineCountForRoom(room)} из ${room.members?.length || 0} в сети`;
+    }
+    const av = document.getElementById('chat-avatar');
+    if (room.avatar) {
+      if (room.avatar.startsWith('http')) { av.style.background = `url(${room.avatar}) center/cover`; av.innerHTML = ''; }
+      else { av.style.background = 'linear-gradient(135deg, var(--primary), var(--accent))'; av.innerHTML = room.avatar; }
+    } else {
+      av.style.background = 'linear-gradient(135deg, var(--primary), var(--accent))';
+      av.innerHTML = (room.name?.charAt(0) || '#').toUpperCase();
+    }
   }
 
   updateChatSubtitle() {
@@ -1227,20 +1415,18 @@ class HelloBro {
     if (!room) return;
     const sub = document.getElementById('chat-subtitle');
     if (room.type === 'direct') {
-      const other = room.members.find(m => m !== this.user?.username);
-      sub.textContent = this.onlineUsers.some(u => u.username === other) ? '🟢 В сети' : '⚫ Не в сети';
+      const other = room.members?.find(m => m !== this.user?.username);
+      sub.textContent = this.onlineUsers.some(u => u.username === other) ? 'В сети' : 'Не в сети';
     } else {
-      sub.textContent = `👥 ${this.getOnlineCountForRoom(room)} из ${room.members.length} в сети`;
+      sub.textContent = `${this.getOnlineCountForRoom(room)} из ${room.members?.length || 0} в сети`;
     }
   }
 
-  // ============================================
-  // СПИСОК ПОЛЬЗОВАТЕЛЕЙ
-  // ============================================
+  // ==================== USERS LIST ====================
   renderUsersList() {
     const c = document.getElementById('users-list');
     c.innerHTML = '';
-    document.querySelector('.panel-header h3').textContent = `👥 В сети (${this.onlineUsers.length})`;
+    document.querySelector('.panel-header h3').textContent = `Участники (${this.onlineUsers.length})`;
 
     this.onlineUsers.forEach(user => {
       const item = document.createElement('div');
@@ -1252,7 +1438,7 @@ class HelloBro {
 
       item.innerHTML = `<div class="avatar-colored" style="width:40px;height:40px;${as}font-size:16px;position:relative">${ac}<div class="online-dot"></div></div>
         <div class="user-item-info"><div class="user-item-name">${user.displayName}${isMe?' (вы)':''}</div>
-        <div class="user-item-status">${user.activityStatus || user.statusText || '🟢 В сети'}</div>
+        <div class="user-item-status">${user.activityStatus || user.statusText || 'В сети'}</div>
         ${user.bio ? `<div class="user-item-bio">${user.bio}</div>` : ''}</div>`;
 
       item.style.cursor = 'pointer';
@@ -1268,21 +1454,294 @@ class HelloBro {
     });
   }
 
-  // ============================================
-  // ПРОФИЛЬ
-  // ============================================
+  // ==================== CONTACTS TAB ====================
+  renderContacts() {
+    const c = document.getElementById('contacts-list');
+    if (!c) return;
+    c.innerHTML = '';
+    if (!this.contacts.length) {
+      const allUsernames = new Set();
+      this.dms.forEach(dm => {
+        dm.members?.forEach(m => { if (m !== this.user?.username) allUsernames.add(m); });
+      });
+      allUsernames.forEach(username => {
+        const u = this.onlineUsers.find(o => o.username === username) || { username, displayName: username, avatarColor: '#6c5ce7', status: 'offline' };
+        this.contacts.push(u);
+      });
+    }
+    if (!this.contacts.length) {
+      c.innerHTML = '<div class="fav-empty">Нет контактов</div>';
+      return;
+    }
+    this.contacts.forEach(contact => {
+      const item = document.createElement('div');
+      item.className = 'contact-item';
+      const isOnline = this.onlineUsers.some(u => u.username === contact.username);
+      const color = contact.avatarColor || '#6c5ce7';
+      const avatarContent = contact.avatar?.startsWith('http') ? '' : (contact.avatar || contact.displayName.charAt(0).toUpperCase());
+      const avatarStyle = contact.avatar?.startsWith('http') ? `background:url(${contact.avatar}) center/cover;` : `background:${color};`;
+      item.innerHTML = `<div class="avatar-colored" style="width:40px;height:40px;${avatarStyle}font-size:16px;position:relative">${avatarContent}${isOnline ? '<div class="online-dot"></div>' : ''}</div>
+        <div class="contact-info"><div class="contact-name">${contact.displayName}</div>
+        <div class="contact-status ${isOnline ? 'contact-online' : 'contact-offline'}">${isOnline ? 'В сети' : 'Не в сети'}</div></div>`;
+      item.addEventListener('click', () => this.startDM(contact.username));
+      c.appendChild(item);
+    });
+  }
+
+  // ==================== CHANNELS TAB ====================
+  bindChannelsUI() {
+    document.getElementById('btn-create-channel').addEventListener('click', () => {
+      document.getElementById('modal-create-channel').style.display = 'flex';
+    });
+    document.getElementById('channel-private').addEventListener('change', (e) => {});
+  }
+
+  renderChannels() {
+    const c = document.getElementById('channels-list');
+    if (!c) return;
+    c.innerHTML = '';
+    const subTab = document.querySelector('.channel-tab.active')?.dataset.subtab || 'subscribed';
+
+    if (subTab === 'subscribed') {
+      if (!this.channels.length) {
+        c.innerHTML = '<div class="fav-empty">Нет подписок</div>';
+        return;
+      }
+      this.channels.forEach(ch => {
+        const card = document.createElement('div');
+        card.className = 'channel-card';
+        card.innerHTML = `<div class="channel-card-header">
+          <div class="avatar-small">${(ch.name?.charAt(0) || '#').toUpperCase()}</div>
+          <div class="channel-card-name">${ch.name}</div></div>
+          <div class="channel-card-desc">${ch.description || 'Нет описания'}</div>
+          <div class="channel-card-meta">
+            <span>Подписчиков: ${typeof ch.subscribers === 'number' ? ch.subscribers : (ch.subscribers?.length || 0)}</span>
+            <span>${ch.type === 'private' ? 'Приватный' : 'Публичный'}</span>
+          </div>
+          <div class="channel-card-actions">
+            <button class="unsubscribe-btn" onclick="app.unsubscribeChannel('${ch.channelId}')">Отписаться</button>
+            <button class="subscribe-btn" onclick="app.openChannel('${ch.channelId}')">Открыть</button>
+          </div>`;
+        c.appendChild(card);
+      });
+    } else {
+      if (this._publicChannels) {
+        this._publicChannels.forEach(ch => {
+          const card = document.createElement('div');
+          card.className = 'channel-card';
+          const isSubscribed = this.channels.some(s => s.channelId === ch.channelId);
+          card.innerHTML = `<div class="channel-card-header">
+            <div class="avatar-small">${(ch.name?.charAt(0) || '#').toUpperCase()}</div>
+            <div class="channel-card-name">${ch.name}</div></div>
+            <div class="channel-card-desc">${ch.description || 'Нет описания'}</div>
+            <div class="channel-card-meta">
+              <span>Подписчиков: ${ch.subscribers || 0}</span>
+              <span>${ch.type === 'private' ? 'Приватный' : 'Публичный'}</span>
+            </div>
+            <div class="channel-card-actions">
+              ${isSubscribed
+                ? `<button class="unsubscribe-btn" onclick="app.unsubscribeChannel('${ch.channelId}')">Отписаться</button>
+                   <button class="subscribe-btn" onclick="app.openChannel('${ch.channelId}')">Открыть</button>`
+                : `<button class="subscribe-btn" onclick="app.subscribeChannel('${ch.channelId}')">Подписаться</button>`}
+            </div>`;
+          c.appendChild(card);
+        });
+      } else {
+        c.innerHTML = '<div class="fav-empty">Загрузка...</div>';
+        if (this.socket) this.socket.emit('channels:list');
+      }
+    }
+
+    const chTabsContainer = document.querySelector('.channel-tabs');
+    if (chTabsContainer && !chTabsContainer.dataset.bound) {
+      chTabsContainer.dataset.bound = '1';
+      chTabsContainer.addEventListener('click', (e) => {
+        const tab = e.target.closest('.channel-tab');
+        if (!tab) return;
+        document.querySelectorAll('.channel-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this._channelsSubTab = tab.dataset.subtab;
+        if (tab.dataset.subtab === 'public' && this.socket) {
+          this.socket.emit('channels:list');
+        }
+        this.renderChannels();
+      });
+    }
+  }
+
+  subscribeChannel(channelId) {
+    if (this.socket) this.socket.emit('channel:subscribe', { channelId });
+  }
+
+  unsubscribeChannel(channelId) {
+    if (this.socket) this.socket.emit('channel:unsubscribe', { channelId });
+  }
+
+  openChannel(channelId) {
+    const roomId = 'ch-' + channelId;
+    if (this.currentRoom !== roomId) this.switchRoom(roomId);
+  }
+
+  createChannel() {
+    const name = document.getElementById('channel-name-input').value.trim();
+    if (!name) { this.showNotification('Введите название'); return; }
+    const type = document.getElementById('channel-private').checked ? 'private' : 'public';
+    const description = document.getElementById('channel-desc-input').value.trim();
+    this.socket.emit('channel:create', { name, type, description });
+    document.getElementById('modal-create-channel').style.display = 'none';
+    document.getElementById('channel-name-input').value = '';
+    document.getElementById('channel-desc-input').value = '';
+    document.getElementById('channel-private').checked = false;
+  }
+
+  // ==================== FAVORITES TAB ====================
+  renderFavorites() {
+    const c = document.getElementById('favorites-list');
+    if (!c) return;
+    c.innerHTML = '';
+    if (!this.favorites.length) {
+      c.innerHTML = '<div class="fav-empty">Нет избранных сообщений</div>';
+      return;
+    }
+    this.favorites.forEach(fav => {
+      const card = document.createElement('div');
+      card.className = 'fav-card';
+      const time = fav.timestamp ? new Date(fav.timestamp).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+      const senderName = fav.sender?.displayName || 'Неизвестно';
+      card.innerHTML = `<div class="fav-card-header">
+        <span class="fav-card-sender">${senderName}</span>
+        <span class="fav-card-room">${fav.room || ''}</span>
+      </div>
+      <div class="fav-card-content">${fav.content || 'Файл'}</div>
+      <div class="fav-card-time">${time}</div>
+      <button class="fav-card-remove" onclick="app.removeFavorite('${fav.id}')">Удалить</button>`;
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.fav-card-remove')) return;
+        if (fav.room) this.switchRoom(fav.room);
+      });
+      c.appendChild(card);
+    });
+  }
+
+  removeFavorite(id) {
+    if (this.socket) this.socket.emit('favorites:remove', { id });
+  }
+
+  // ==================== MY PROFILE ====================
   showMyProfile() {
     const modal = document.getElementById('modal-profile');
-    document.getElementById('profile-displayname').value = this.user.displayName;
-    document.getElementById('profile-status').value = this.user.statusText || '';
+
+    // populate profile pane
+    document.getElementById('profile-displayname').value = this.user.displayName || '';
     document.getElementById('profile-bio').value = this.user.bio || '';
+    document.getElementById('profile-username').value = this.user.username || '';
+    document.getElementById('profile-phone-display-input').value = this.user.phone || '';
+    document.getElementById('profile-name-display').textContent = this.user.displayName || this.user.username;
+    document.getElementById('profile-phone-display').textContent = this.user.phone ? '+'+this.user.phone : '';
     const av = document.getElementById('profile-avatar-large');
     this.setAvatarElement(av, this.user);
     this.buildAvatarEmojiGrid();
     this.buildBackgroundPicker();
-    this.buildActivityPicker();
-    document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d.style.backgroundColor === this.user.avatarColor));
+    this.buildColorPicker();
+
+    // privacy pane
+    document.getElementById('profile-invisible').checked = !!this.user.invisible;
+    document.getElementById('profile-dnd').checked = !!this.user.doNotDisturb;
+
+    // account pane
+    const createdAt = document.getElementById('profile-created-at');
+    if (this.user.createdAt) {
+      const d = new Date(this.user.createdAt);
+      createdAt.textContent = d.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
+    } else {
+      createdAt.textContent = '—';
+    }
+
+    // theme picker
+    document.querySelectorAll('.theme-option').forEach(el => {
+      el.classList.toggle('active', el.dataset.theme === (this.currentTheme || 'dark'));
+    });
+
+    // sound selector inline
+    this.buildSoundSelectorInline();
+
+    // reset to first tab
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.settings-pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('.settings-tab[data-stab="profile"]')?.classList.add('active');
+    document.getElementById('stab-profile')?.classList.add('active');
+
     modal.style.display = 'flex';
+  }
+
+  applyThemeFromPicker(theme) {
+    this.applyTheme(theme);
+    document.querySelectorAll('.theme-option').forEach(el => {
+      el.classList.toggle('active', el.dataset.theme === theme);
+    });
+  }
+
+  buildSoundSelectorInline() {
+    const c = document.getElementById('sound-selector-inline');
+    if (!c) return;
+    c.innerHTML = '';
+    Object.keys(this.soundMap).forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = `sound-chip${this.selectedSound === key ? ' active' : ''}`;
+      btn.textContent = this.soundMap[key].name;
+      btn.addEventListener('click', () => {
+        this.selectedSound = key;
+        c.querySelectorAll('.sound-chip').forEach(ch => ch.classList.remove('active'));
+        btn.classList.add('active');
+      });
+      c.appendChild(btn);
+    });
+  }
+
+  initSettingsTabs() {
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.settings-pane').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        const pane = document.getElementById('stab-' + tab.dataset.stab);
+        if (pane) pane.classList.add('active');
+      });
+    });
+
+    // theme picker
+    document.querySelectorAll('.theme-option').forEach(el => {
+      el.addEventListener('click', () => this.applyThemeFromPicker(el.dataset.theme));
+    });
+
+    // avatar file input
+    const avatarInput = document.getElementById('avatar-file-input');
+    if (avatarInput) {
+      avatarInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) this.uploadAvatar(file);
+      });
+    }
+  }
+
+  buildColorPicker() {
+    const c = document.getElementById('profile-color-picker');
+    if (!c) return;
+    c.innerHTML = '';
+    this.profileColors.forEach(color => {
+      const d = document.createElement('span');
+      d.className = `color-dot ${this.user.avatarColor === color ? 'active' : ''}`;
+      d.style.background = color;
+      d.addEventListener('click', () => this.setAvatarColor(color));
+      c.appendChild(d);
+    });
+  }
+
+  setAvatarColor(color) {
+    this.user.avatarColor = color;
+    const av = document.getElementById('profile-avatar-large');
+    if (!this.user.avatar?.startsWith('http')) av.style.background = color;
+    document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d.style.backgroundColor === color));
   }
 
   buildAvatarEmojiGrid() {
@@ -1302,13 +1761,11 @@ class HelloBro {
       g.appendChild(s);
     });
     const up = document.createElement('span');
-    up.className = 'avatar-emoji-option avatar-upload-btn'; up.innerHTML = '📷'; up.title = 'Загрузить фото';
+    up.className = 'avatar-emoji-option avatar-upload-btn'; up.textContent = '📷'; up.title = 'Загрузить фото';
     up.addEventListener('click', () => document.getElementById('avatar-file-input').click());
     g.appendChild(up);
-
-    // Кнопка сброса
     const reset = document.createElement('span');
-    reset.className = 'avatar-emoji-option'; reset.innerHTML = '❌'; reset.title = 'Сбросить';
+    reset.className = 'avatar-emoji-option'; reset.textContent = '❌'; reset.title = 'Сбросить';
     reset.addEventListener('click', () => {
       this.user.avatar = null;
       const av = document.getElementById('profile-avatar-large');
@@ -1326,7 +1783,7 @@ class HelloBro {
       const d = document.createElement('div');
       d.className = `bg-option ${this.chatBackground === bg.id ? 'active' : ''}`;
       d.style.background = bg.css || 'var(--bg-chat)';
-      d.title = bg.name; d.innerHTML = `<span>${bg.name}</span>`;
+      d.title = bg.name;
       d.addEventListener('click', () => {
         this.setChatBackground(bg.id);
         document.querySelectorAll('.bg-option').forEach(o => o.classList.remove('active'));
@@ -1334,38 +1791,6 @@ class HelloBro {
       });
       c.appendChild(d);
     });
-  }
-
-  buildActivityPicker() {
-    const c = document.getElementById('activity-picker'); if (!c) return;
-    c.innerHTML = '';
-    this.activityStatuses.forEach(a => {
-      const d = document.createElement('div');
-      d.className = `activity-option ${this.user.activityStatus === `${a.emoji} ${a.text}` ? 'active' : ''}`;
-      d.innerHTML = `${a.emoji} ${a.text}`;
-      d.addEventListener('click', () => {
-        this.user.activityStatus = `${a.emoji} ${a.text}`;
-        document.querySelectorAll('.activity-option').forEach(o => o.classList.remove('active'));
-        d.classList.add('active');
-      });
-      c.appendChild(d);
-    });
-    // Кнопка сброса
-    const clear = document.createElement('div');
-    clear.className = 'activity-option';
-    clear.innerHTML = '❌ Убрать';
-    clear.addEventListener('click', () => {
-      this.user.activityStatus = '';
-      document.querySelectorAll('.activity-option').forEach(o => o.classList.remove('active'));
-    });
-    c.appendChild(clear);
-  }
-
-  setAvatarColor(color) {
-    this.user.avatarColor = color;
-    const av = document.getElementById('profile-avatar-large');
-    if (!this.user.avatar?.startsWith('http')) av.style.background = color;
-    document.querySelectorAll('.color-dot').forEach(d => d.classList.toggle('active', d.style.backgroundColor === color));
   }
 
   async uploadAvatar(file) {
@@ -1376,31 +1801,49 @@ class HelloBro {
       this.user.avatar = fi.url;
       const av = document.getElementById('profile-avatar-large');
       av.style.background = `url(${fi.url}) center/cover`; av.textContent = '';
-      document.querySelectorAll('.avatar-emoji-option').forEach(o => o.classList.remove('active'));
     } catch (e) { this.showNotification('Ошибка загрузки'); }
   }
 
   saveProfile() {
-    const dn = document.getElementById('profile-displayname').value.trim();
-    if (!dn) { this.showNotification('Имя не может быть пустым'); return; }
+    const displayName = document.getElementById('profile-displayname').value.trim() || this.user.username;
+    this.user.displayName = displayName;
     this.socket.emit('profile:update', {
-      displayName: dn,
-      statusText: document.getElementById('profile-status').value.trim(),
+      displayName,
       bio: document.getElementById('profile-bio').value.trim(),
       avatarColor: this.user.avatarColor,
       avatar: this.user.avatar,
-      activityStatus: this.user.activityStatus,
+      activityStatus: this.user.activityStatus || '',
       invisible: document.getElementById('profile-invisible')?.checked || false,
       doNotDisturb: document.getElementById('profile-dnd')?.checked || false,
       theme: this.currentTheme
     });
+    document.getElementById('profile-name-display').textContent = displayName;
     document.getElementById('modal-profile').style.display = 'none';
-    this.showNotification('Профиль обновлён ✅');
+    this.updateMyProfile();
+    this.showNotification('Профиль обновлён');
   }
 
-  // ============================================
-  // СТАТИСТИКА
-  // ============================================
+  logout() {
+    if (this.socket) {
+      this.socket.emit('user:logout');
+      this.socket.disconnect();
+      this.socket = null;
+    }
+    this.user = null;
+    this.currentRoom = null;
+    this.messages = {};
+    localStorage.removeItem('hb-session-token');
+    localStorage.removeItem('pulse-token');
+    localStorage.removeItem('pulse-phone');
+    localStorage.removeItem('pulse-username');
+    document.getElementById('modal-profile').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('chat-container').style.display = 'none';
+    document.getElementById('sidebar-container').style.display = 'none';
+    this.showNotification('Вы вышли из аккаунта');
+  }
+
+  // ==================== STATS ====================
   showStats() { this.socket.emit('stats:get', { room: this.currentRoom }); }
 
   showStatsModal(data) {
@@ -1411,16 +1854,14 @@ class HelloBro {
       document.body.appendChild(modal);
     }
     let topHTML = data.topSenders.map((s, i) => `<div class="stat-row"><span class="stat-rank">${i+1}.</span><span class="stat-name">${s.name}</span><span class="stat-count">${s.count} сообщ.</span></div>`).join('');
-    modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3><i class="fas fa-chart-bar"></i> Статистика</h3><button class="btn-icon" onclick="document.getElementById('modal-stats').style.display='none'"><i class="fas fa-times"></i></button></div>
+    modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3>Статистика</h3><button class="btn-icon" onclick="this.closest('.modal').style.display='none'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-body"><div class="stats-grid"><div class="stat-card"><div class="stat-number">${data.totalMessages}</div><div class="stat-label">Сообщений</div></div>
     <div class="stat-card"><div class="stat-number">${data.totalMembers}</div><div class="stat-label">Участников</div></div></div>
-    <h4 style="margin:16px 0 8px">🏆 Топ отправителей</h4>${topHTML}</div></div>`;
+    <h4 style="margin:16px 0 8px">Топ отправителей</h4>${topHTML}</div></div>`;
     modal.style.display = 'flex';
   }
 
-  // ============================================
-  // ГРУППЫ
-  // ============================================
+  // ==================== GROUPS ====================
   showGroupModal() {
     const modal = document.getElementById('modal-new-group');
     const mc = document.getElementById('members-select');
@@ -1429,7 +1870,8 @@ class HelloBro {
       if (u.username === this.user?.username) return;
       const opt = document.createElement('label');
       opt.className = 'member-option';
-      opt.innerHTML = `<input type="checkbox" value="${u.username}"><div class="avatar-colored" style="width:32px;height:32px;background:${u.avatarColor||'#6c5ce7'};font-size:13px">${u.displayName.charAt(0).toUpperCase()}</div><span>${u.displayName}</span>`;
+      const color = u.avatarColor || '#6c5ce7';
+      opt.innerHTML = `<input type="checkbox" value="${u.username}"><div class="avatar-colored" style="width:32px;height:32px;background:${color};font-size:13px">${u.displayName.charAt(0).toUpperCase()}</div><span>${u.displayName}</span>`;
       mc.appendChild(opt);
     });
     modal.style.display = 'flex';
@@ -1444,18 +1886,17 @@ class HelloBro {
     this.socket.emit('room:create', { name, type: 'group', members, isSecret, secretPassword: password, description: document.getElementById('group-desc')?.value || '' });
     document.getElementById('modal-new-group').style.display = 'none';
     document.getElementById('group-name-input').value = '';
+    document.getElementById('group-desc').value = '';
   }
 
   getInviteLink() {
     const room = this.rooms.get(this.currentRoom);
     if (!room?.inviteCode) return;
     const link = `${window.location.origin}/invite/${room.inviteCode}`;
-    navigator.clipboard.writeText(link).then(() => this.showNotification('Ссылка скопирована: ' + link));
+    navigator.clipboard.writeText(link).then(() => this.showNotification('Ссылка скопирована'));
   }
 
-  // ============================================
-  // МОДЕРАЦИЯ
-  // ============================================
+  // ==================== MODERATION ====================
   banUser(username) {
     if (!confirm(`Заблокировать ${username}?`)) return;
     this.socket.emit('room:ban', { roomId: this.currentRoom, username });
@@ -1474,16 +1915,13 @@ class HelloBro {
     this.socket.emit('user:block', { username });
   }
 
-  // ============================================
-  // ЗВУК / ЭМОДЗИ / ФАЙЛЫ
-  // ============================================
+  // ==================== SOUND / EMOJI / FILES ====================
   bindSoundSelector() {
     const btn = document.getElementById('btn-sound');
     const dd = document.getElementById('sound-dropdown');
     btn.addEventListener('click', (e) => { e.stopPropagation(); dd.classList.toggle('show'); });
     document.querySelectorAll('.sound-option').forEach(o => {
       o.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-play')) return;
         this.selectedSound = o.dataset.sound;
         document.querySelectorAll('.sound-option').forEach(x => x.classList.remove('active'));
         o.classList.add('active');
@@ -1491,14 +1929,13 @@ class HelloBro {
         dd.classList.remove('show');
       });
     });
-    document.querySelectorAll('.btn-play').forEach(p => p.addEventListener('click', (e) => { e.stopPropagation(); this.playSound(p.dataset.sound); }));
     document.addEventListener('click', () => dd.classList.remove('show'));
   }
 
   showSoundNotification(type) {
     const s = this.soundMap[type]; if (!s) return;
     const n = document.getElementById('sound-notification');
-    document.getElementById('sound-notif-text').textContent = `${s.emoji} ${s.name}!`;
+    document.getElementById('sound-notif-text').textContent = `${s.name}!`;
     n.style.display = 'block'; setTimeout(() => n.style.display = 'none', 3000);
   }
 
@@ -1558,9 +1995,7 @@ class HelloBro {
     });
   }
 
-  // ============================================
-  // ОТВЕТ / ПЕЧАТЬ / УТИЛИТЫ
-  // ============================================
+  // ==================== REPLY / TYPING / UTILS ====================
   setReply(id, content) {
     this.replyingTo = { id, content: content || '' };
     document.getElementById('reply-preview').style.display = 'flex';
@@ -1632,7 +2067,7 @@ class HelloBro {
           const r = await fetch('/upload', { method: 'POST', body: fd });
           const fi = await r.json();
           this.socket.emit('message:send', {
-            type: 'video_circle', content: '📹 Видеокружок',
+            type: 'video_circle', content: 'Видеокружок',
             room: this.currentRoom, sendSound: this.selectedSound, file: fi
           });
         } catch (e) { console.error('VC upload error:', e); }
@@ -1653,22 +2088,13 @@ class HelloBro {
     document.getElementById('vc-timer').textContent = '0';
   }
 
-  // ==================== QR LOGIN ====================
-  showQRLogin() {
-    const modal = document.getElementById('modal-qr');
-    modal.style.display = 'flex';
-    const container = document.getElementById('qr-code-container');
-    container.innerHTML = '<p style="color:var(--text-secondary)">Генерирую QR...</p>';
-    this.socket.emit('qr:generate');
-  }
-
   // ==================== WEBRTC CALLS ====================
   startCall(callee, type = 'audio') {
     if (!this.socket) return;
     this.socket.emit('call:start', { callee, callType: type });
     this._callType = type;
     document.getElementById('modal-call').style.display = 'flex';
-    document.getElementById('call-status').textContent = '⏳ Звоним...';
+    document.getElementById('call-status').textContent = 'Звоним...';
   }
 
   async answerCall(data) {
@@ -1676,7 +2102,7 @@ class HelloBro {
     this._callType = data.type;
     this._callPeer = data.caller;
     document.getElementById('modal-call').style.display = 'flex';
-    document.getElementById('call-status').textContent = '🔊 Соединяем...';
+    document.getElementById('call-status').textContent = 'Соединяем...';
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true, video: data.type === 'video'
@@ -1765,6 +2191,10 @@ class HelloBro {
     }
     if (this.socket) {
       this.socket.emit('device:register', { deviceId, platform: 'web' });
+      // Request sync after a brief delay to let user:joined complete
+      setTimeout(() => {
+        this.socket.emit('sync:request', { deviceId, since: new Date(Date.now() - 86400000).toISOString() });
+      }, 2000);
     }
   }
 
@@ -1772,30 +2202,26 @@ class HelloBro {
   _bindFeatureSockets() {
     if (!this.socket) return;
 
-    // QR
-    this.socket.on('qr:generated', (data) => {
-      const container = document.getElementById('qr-code-container');
-      if (typeof QRCode !== 'undefined') {
-        container.innerHTML = '';
-        new QRCode(container, { text: JSON.stringify({ token: data.token, t: Date.now() }), width: 200, height: 200 });
-      } else {
-        container.innerHTML = `<p style="color:var(--text-secondary)">Токен: ${data.token}</p>`;
+    this.socket.on('sync:messages', (data) => {
+      const syncMsgs = data.messages || [];
+      if (syncMsgs.length > 0) {
+        syncMsgs.forEach(m => {
+          if (!this.messagesCache.has(m.room)) this.messagesCache.set(m.room, []);
+          const existing = this.messagesCache.get(m.room);
+          if (!existing.find(e => e.messageId === m.messageId)) {
+            existing.push(m);
+          }
+        });
+        if (this.messagesCache.has(this.currentRoom)) {
+          document.getElementById('messages-list').innerHTML = '';
+          this.messagesCache.get(this.currentRoom).forEach(m => this.renderMessage(m));
+          this.scrollToBottom();
+        }
       }
-      document.getElementById('qr-token').value = data.token;
-    });
-    this.socket.on('qr:scanned', (data) => {
-      document.getElementById('qr-status').textContent = `📱 Сканировано: ${data.username}`;
-      document.getElementById('qr-confirm-btn').style.display = 'block';
-      document.getElementById('qr-confirm-btn').dataset.sessionId = data.sessionId;
-    });
-    this.socket.on('qr:done', (data) => {
-      document.getElementById('qr-status').textContent = `✅ Подтверждено! ${data.username}`;
-      setTimeout(() => document.getElementById('modal-qr').style.display = 'none', 2000);
     });
 
-    // Calls
     this.socket.on('call:incoming', (data) => {
-      if (!confirm(`📞 Входящий ${data.type === 'video' ? 'видео' : 'аудио'}звонок от ${data.callerDisplayName || data.caller}\nПринять?`)) {
+      if (!confirm(`Входящий ${data.type === 'video' ? 'видео' : 'аудио'}звонок от ${data.callerDisplayName || data.caller}\nПринять?`)) {
         this.socket.emit('call:reject', { callId: data.callId });
         return;
       }
@@ -1804,20 +2230,17 @@ class HelloBro {
       this.answerCall(data);
     });
     this.socket.on('call:ringing', () => {
-      document.getElementById('call-status').textContent = '📞 Звонок...';
+      document.getElementById('call-status').textContent = 'Звонок...';
     });
     this.socket.on('call:accepted', async (data) => {
-      document.getElementById('call-status').textContent = '🟢 Соединено';
-      if (this._callType === 'video') {
-        document.getElementById('call-remote-video').style.display = 'block';
-      }
+      document.getElementById('call-status').textContent = 'Соединено';
     });
     this.socket.on('call:rejected', () => {
-      document.getElementById('call-status').textContent = '❌ Отклонено';
+      document.getElementById('call-status').textContent = 'Отклонено';
       setTimeout(() => this._cleanupCall(), 2000);
     });
     this.socket.on('call:ended', () => {
-      document.getElementById('call-status').textContent = '🔴 Звонок завершён';
+      document.getElementById('call-status').textContent = 'Завершён';
       setTimeout(() => this._cleanupCall(), 2000);
     });
     this.socket.on('call:error', (data) => {
@@ -1828,7 +2251,4 @@ class HelloBro {
   }
 }
 
-// ============================================
-// ЗАПУСК
-// ============================================
 const app = new HelloBro();

@@ -58,6 +58,7 @@ async function initDb() {
   )`);
   try { db.run(`ALTER TABLE users ADD COLUMN phone TEXT`); } catch(e) {}
   try { db.run(`ALTER TABLE users ADD COLUMN password TEXT`); } catch(e) {}
+  try { db.run(`ALTER TABLE users ADD COLUMN sessionToken TEXT`); } catch(e) {}
   db.run(`CREATE TABLE IF NOT EXISTS messages (
     messageId TEXT PRIMARY KEY,
     type TEXT DEFAULT 'text',
@@ -111,6 +112,31 @@ async function initDb() {
     closed INTEGER DEFAULT 0,
     createdAt TEXT DEFAULT (datetime('now'))
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS channels (
+    channelId TEXT PRIMARY KEY,
+    name TEXT,
+    description TEXT DEFAULT '',
+    type TEXT DEFAULT 'public',
+    admin TEXT,
+    moderators TEXT DEFAULT '[]',
+    subscribers TEXT DEFAULT '[]',
+    banned TEXT DEFAULT '[]',
+    avatar TEXT,
+    pinnedMessage TEXT,
+    slowMode INTEGER DEFAULT 0,
+    createdAt TEXT DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS favorites (
+    id TEXT PRIMARY KEY,
+    username TEXT,
+    messageId TEXT,
+    type TEXT DEFAULT 'text',
+    content TEXT,
+    file TEXT,
+    room TEXT,
+    sender TEXT,
+    timestamp TEXT DEFAULT (datetime('now'))
+  )`);
   saveDb();
   console.log('SQLite база данных инициализирована');
 }
@@ -160,6 +186,7 @@ function parseJsonField(val, def = null) {
 function formatUserRow(r) {
   return {
     username: r.username,
+    phone: r.phone || '',
     displayName: r.displayName,
     avatar: r.avatar,
     avatarColor: r.avatarColor,
@@ -368,10 +395,36 @@ io.on('connection', (socket) => {
     } catch (err) { console.error('Join error:', err); }
   });
 
+  // ==================== SESSION TOKEN RECONNECT ====================
+  socket.on('user:reconnect', async (data) => {
+    if (!data.sessionToken) return;
+    try {
+      const dbUser = dbGet(`SELECT * FROM users WHERE sessionToken = ?`, [data.sessionToken]);
+      if (!dbUser) { socket.emit('auth:error', { text: 'Сессия недействительна' }); return; }
+      const oldUser = [...onlineUsers.entries()].find(([_, u]) => u.username === dbUser.username);
+      if (oldUser) {
+        const oldSocket = io.sockets.sockets.get(oldUser[0]);
+        if (oldSocket) { oldSocket.leave('general'); oldSocket.disconnect(true); }
+        onlineUsers.delete(oldUser[0]);
+      }
+      proceedLogin(socket, dbUser);
+    } catch (e) { console.error('Reconnect error:', e); socket.emit('auth:error', { text: 'Ошибка reconnect' }); }
+  });
+
+  socket.on('user:logout', async () => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      dbRun(`UPDATE users SET sessionToken = NULL WHERE username = ?`, [user.username]);
+      user.sessionToken = null;
+    } catch (e) { console.error('Logout error:', e); }
+  });
+
   async function proceedLogin(socket, dbUser) {
     const invisible = !!dbUser.invisible;
-    dbRun(`UPDATE users SET status = ?, lastSeen = datetime('now') WHERE username = ?`,
-      [invisible ? 'offline' : 'online', dbUser.username]);
+    const sessionToken = generateId() + '-' + generateId();
+    dbRun(`UPDATE users SET status = ?, lastSeen = datetime('now'), sessionToken = ? WHERE username = ?`,
+      [invisible ? 'offline' : 'online', sessionToken, dbUser.username]);
     dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [dbUser.username]);
     const user = formatUserRow(dbUser);
     user.id = socket.id;
@@ -403,12 +456,41 @@ io.on('connection', (socket) => {
     const generalMsgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp DESC LIMIT 100`, ['general']);
     const msgRows = generalMsgs.reverse().map(formatMessageRow);
 
+    const userChannels = dbAll(`SELECT * FROM channels`);
+    const subscribedChannels = userChannels.filter(c => {
+      const subs = parseJsonField(c.subscribers, []);
+      return subs.includes(user.username);
+    });
+    const allDms = dbAll(`SELECT * FROM rooms WHERE type = 'direct'`);
+    const userDms = allDms.filter(r => {
+      const members = parseJsonField(r.members, []);
+      return members.includes(user.username);
+    });
+    userDms.forEach(r => socket.join(r.roomId));
+    subscribedChannels.forEach(c => socket.join('ch-' + c.channelId));
+
+    const favs = dbAll(`SELECT * FROM favorites WHERE username = ? ORDER BY timestamp DESC LIMIT 200`, [user.username]);
+
     socket.emit('user:joined', {
       user,
       rooms: filteredRooms.map(formatRoomRow),
+      dms: userDms.map(formatRoomRow),
+      channels: subscribedChannels.map(c => ({
+        channelId: c.channelId, name: c.name, description: c.description,
+        type: c.type, admin: c.admin,
+        subscribers: parseJsonField(c.subscribers, []),
+        avatar: c.avatar, createdAt: c.createdAt
+      })),
       messages: msgRows,
+      favorites: favs.map(f => ({
+        id: f.id, messageId: f.messageId,
+        type: f.type, content: f.content,
+        file: parseJsonField(f.file), room: f.room,
+        sender: parseJsonField(f.sender), timestamp: f.timestamp
+      })),
       onlineUsers: getOnlineUsersList(),
-      unreadCounts: unreadCounts.get(user.username) || {}
+      unreadCounts: unreadCounts.get(user.username) || {},
+      sessionToken
     });
 
     if (!user.invisible) {
@@ -424,24 +506,51 @@ io.on('connection', (socket) => {
     const user = onlineUsers.get(socket.id);
     if (!user) return;
     try {
-      const room = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, [data.room]);
-      if (!room) return;
+      let room = null;
+      let channel = null;
+      let members = [];
+      let banned = [];
+      let muted = [];
+      let slowMode = 0;
+      let admin = null;
 
-      if (memberInArray(room.banned, user.username)) {
+      const isChannel = data.room && data.room.startsWith('ch-');
+      if (isChannel) {
+        const chId = data.room.replace('ch-', '');
+        channel = dbGet(`SELECT * FROM channels WHERE channelId = ?`, [chId]);
+        if (channel) {
+          members = parseJsonField(channel.subscribers, []);
+          banned = parseJsonField(channel.banned, []);
+          slowMode = channel.slowMode || 0;
+          admin = channel.admin;
+        }
+      } else {
+        room = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, [data.room]);
+        if (room) {
+          members = parseJsonField(room.members, []);
+          banned = parseJsonField(room.banned, []);
+          muted = parseJsonField(room.muted, []);
+          slowMode = room.slowMode || 0;
+          admin = room.admin;
+        }
+      }
+      if (!room && !channel) return;
+
+      if (banned.includes(user.username)) {
         socket.emit('error:message', { text: 'Вы заблокированы в этом чате' });
         return;
       }
 
-      if (memberInArray(room.muted, user.username)) {
+      if (muted.includes(user.username)) {
         socket.emit('error:message', { text: 'Вы не можете писать в этом чате (мут)' });
         return;
       }
 
-      if (room.slowMode > 0) {
+      if (slowMode > 0) {
         const key = `${user.username}:${data.room}`;
         const lastTime = lastMessageTime.get(key);
-        if (lastTime && Date.now() - lastTime < room.slowMode * 1000) {
-          const wait = Math.ceil((room.slowMode * 1000 - (Date.now() - lastTime)) / 1000);
+        if (lastTime && Date.now() - lastTime < slowMode * 1000) {
+          const wait = Math.ceil((slowMode * 1000 - (Date.now() - lastTime)) / 1000);
           socket.emit('error:message', { text: `Подождите ${wait} сек. (медленный режим)` });
           return;
         }
@@ -464,7 +573,6 @@ io.on('connection', (socket) => {
 
       const message = await saveMessage(msgData);
 
-      const members = parseJsonField(room.members, []);
       members.forEach(m => {
         if (m !== user.username) {
           if (!unreadCounts.has(m)) unreadCounts.set(m, {});
@@ -540,16 +648,17 @@ io.on('connection', (socket) => {
     const c = unreadCounts.get(user.username);
     if (c) c[data.room] = 0;
 
-    const msgs = dbAll(`SELECT * FROM messages WHERE room = ? AND senderUsername != ?`, [data.room, user.username]);
+    const msgs = dbAll(`SELECT * FROM messages WHERE room = ? AND senderUsername != ? LIMIT 200`, [data.room, user.username]);
+    const username = user.username;
     msgs.forEach(m => {
       const readBy = parseJsonField(m.readBy, []);
-      if (!readBy.includes(user.username)) {
-        readBy.push(user.username);
+      if (!readBy.includes(username)) {
+        readBy.push(username);
         dbRun(`UPDATE messages SET readBy = ? WHERE messageId = ?`, [JSON.stringify(readBy), m.messageId]);
       }
     });
 
-    socket.to(data.room).emit('messages:were-read', { room: data.room, readBy: user.username });
+    socket.to(data.room).emit('messages:were-read', { room: data.room, readBy: [username] });
   });
 
   socket.on('message:delete', async (data) => {
@@ -702,6 +811,23 @@ io.on('connection', (socket) => {
     } catch (err) { console.error('Get profile error:', err); }
   });
 
+  // ==================== MESSAGE PAGINATION ====================
+  socket.on('messages:load-older', async (data) => {
+    const user = onlineUsers.get(socket.id);
+    if (!user || !data.room || typeof data.offset !== 'number') return;
+    try {
+      const msgs = dbAll(
+        `SELECT * FROM messages WHERE room = ? ORDER BY timestamp DESC LIMIT 50 OFFSET ?`,
+        [data.room, data.offset]
+      );
+      socket.emit('messages:older', {
+        room: data.room,
+        messages: msgs.reverse().map(formatMessageRow),
+        hasMore: msgs.length === 50
+      });
+    } catch (err) { console.error('Load older msgs error:', err); }
+  });
+
   socket.on('user:block', async (data) => {
     const user = onlineUsers.get(socket.id);
     if (!user) return;
@@ -748,13 +874,23 @@ io.on('connection', (socket) => {
     if (!user) return;
     try {
       socket.join(data.roomId);
-      const room = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, [data.roomId]);
-      if (room) {
-        const newMembers = addToSet(room.members, user.username);
-        dbRun(`UPDATE rooms SET members = ? WHERE roomId = ?`, [newMembers, data.roomId]);
+      let room = null;
+      // Check if this is a channel room
+      if (data.roomId && data.roomId.startsWith('ch-')) {
+        const channelId = data.roomId.replace('ch-', '');
+        const ch = dbGet(`SELECT * FROM channels WHERE channelId = ?`, [channelId]);
+        if (ch) {
+          room = { id: data.roomId, name: ch.name, type: 'channel', description: ch.description, avatar: ch.avatar, members: parseJsonField(ch.subscribers, []) };
+        }
+      } else {
+        room = dbGet(`SELECT * FROM rooms WHERE roomId = ?`, [data.roomId]);
+        if (room) {
+          const newMembers = addToSet(room.members, user.username);
+          dbRun(`UPDATE rooms SET members = ? WHERE roomId = ?`, [newMembers, data.roomId]);
+        }
       }
       const msgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp DESC LIMIT 100`, [data.roomId]);
-      socket.emit('room:joined', { room: formatRoomRow(room), messages: msgs.reverse().map(formatMessageRow) });
+      socket.emit('room:joined', { room, messages: msgs.reverse().map(formatMessageRow) });
     } catch (err) { console.error('Join room error:', err); }
   });
 
@@ -887,6 +1023,212 @@ io.on('connection', (socket) => {
       if (ts) { ts.join(roomId); ts.emit('room:created', formatRoomRow(newRoom)); }
       socket.emit('dm:opened', { room: formatRoomRow(newRoom), messages: [] });
     } catch (err) { console.error('DM error:', err); }
+  });
+
+  // ==================== CHANNELS ====================
+  socket.on('channels:list', async () => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const publicChannels = dbAll(`SELECT * FROM channels WHERE type = 'public' ORDER BY createdAt DESC`);
+      socket.emit('channels:list', publicChannels.map(c => ({
+        channelId: c.channelId, name: c.name, description: c.description,
+        type: c.type, admin: c.admin,
+        subscribers: parseJsonField(c.subscribers, []).length,
+        avatar: c.avatar, createdAt: c.createdAt
+      })));
+    } catch (e) { console.error('Channels list error:', e); }
+  });
+
+  socket.on('channels:list-subscribed', async () => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const all = dbAll(`SELECT * FROM channels`);
+      const subscribed = all.filter(c => {
+        const subs = parseJsonField(c.subscribers, []);
+        return subs.includes(user.username);
+      });
+      socket.emit('channels:list-subscribed', subscribed.map(c => ({
+        channelId: c.channelId, name: c.name, description: c.description,
+        type: c.type, admin: c.admin,
+        subscribers: parseJsonField(c.subscribers, []).length,
+        avatar: c.avatar, createdAt: c.createdAt
+      })));
+    } catch (e) { console.error('Channels list user error:', e); }
+  });
+
+  socket.on('channel:create', async (data) => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const channelId = 'channel-' + uuidv4();
+      const subscribers = JSON.stringify([user.username]);
+      dbRun(`INSERT INTO channels (channelId, name, description, type, admin, subscribers) VALUES (?, ?, ?, ?, ?, ?)`,
+        [channelId, data.name, data.description || '', data.type || 'public', user.username, subscribers]);
+      socket.join('ch-' + channelId);
+      const channel = dbGet(`SELECT * FROM channels WHERE channelId = ?`, [channelId]);
+      const sysMsg = await saveMessage({ type: 'system', content: `Канал "${data.name}" создан`, room: 'ch-' + channelId });
+      io.to('ch-' + channelId).emit('message:new', sysMsg);
+      socket.emit('channel:created', {
+        channelId: channel.channelId, name: channel.name, description: channel.description,
+        type: channel.type, admin: channel.admin,
+        subscribers: parseJsonField(channel.subscribers, []),
+        avatar: channel.avatar, createdAt: channel.createdAt
+      });
+    } catch (e) { console.error('Channel create error:', e); }
+  });
+
+  socket.on('channel:subscribe', async (data) => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const channel = dbGet(`SELECT * FROM channels WHERE channelId = ?`, [data.channelId]);
+      if (!channel) return;
+      const subs = addToSet(channel.subscribers, user.username);
+      dbRun(`UPDATE channels SET subscribers = ? WHERE channelId = ?`, [subs, data.channelId]);
+      socket.join('ch-' + data.channelId);
+      socket.emit('channel:subscribed', { channelId: data.channelId });
+      const sysMsg = await saveMessage({ type: 'system', content: `${user.displayName} подписался на канал`, room: 'ch-' + data.channelId });
+      io.to('ch-' + data.channelId).emit('message:new', sysMsg);
+    } catch (e) { console.error('Channel subscribe error:', e); }
+  });
+
+  socket.on('channel:unsubscribe', async (data) => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const channel = dbGet(`SELECT * FROM channels WHERE channelId = ?`, [data.channelId]);
+      if (!channel || channel.admin === user.username) return;
+      const subs = pullFromArray(channel.subscribers, user.username);
+      dbRun(`UPDATE channels SET subscribers = ? WHERE channelId = ?`, [subs, data.channelId]);
+      socket.leave('ch-' + data.channelId);
+      socket.emit('channel:unsubscribed', { channelId: data.channelId });
+    } catch (e) { console.error('Channel unsubscribe error:', e); }
+  });
+
+  // ==================== FAVORITES ====================
+  socket.on('favorites:add', async (data) => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const msg = dbGet(`SELECT * FROM messages WHERE messageId = ?`, [data.messageId]);
+      if (!msg) return;
+      const id = uuidv4();
+      dbRun(`INSERT INTO favorites (id, username, messageId, type, content, file, room, sender, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, user.username, msg.messageId, msg.type, msg.content, msg.file, msg.room, JSON.stringify({
+          username: msg.senderUsername, displayName: msg.senderDisplayName,
+          avatar: msg.senderAvatar, avatarColor: msg.senderAvatarColor
+        }), msg.timestamp]);
+      socket.emit('favorites:added', { id });
+    } catch (e) { console.error('Favorites add error:', e); }
+  });
+
+  socket.on('favorites:remove', async (data) => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    dbRun(`DELETE FROM favorites WHERE id = ? AND username = ?`, [data.id, user.username]);
+    socket.emit('favorites:removed', { id: data.id });
+  });
+
+  socket.on('favorites:list', async () => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const favs = dbAll(`SELECT * FROM favorites WHERE username = ? ORDER BY timestamp DESC LIMIT 200`, [user.username]);
+      socket.emit('favorites:list', favs.map(f => ({
+        id: f.id, messageId: f.messageId,
+        type: f.type, content: f.content,
+        file: parseJsonField(f.file), room: f.room,
+        sender: parseJsonField(f.sender),
+        timestamp: f.timestamp
+      })));
+    } catch (e) { console.error('Favorites list error:', e); }
+  });
+
+  // ==================== CONTACTS ====================
+  socket.on('contacts:list', async () => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const dms = dbAll(`SELECT * FROM rooms WHERE type = 'direct'`);
+      const contactNames = new Set();
+      dms.forEach(r => {
+        const members = parseJsonField(r.members, []);
+        if (members.includes(user.username)) {
+          members.forEach(m => { if (m !== user.username) contactNames.add(m); });
+        }
+      });
+      const contacts = [];
+      contactNames.forEach(name => {
+        const u = dbGet(`SELECT * FROM users WHERE username = ?`, [name]);
+        if (u) contacts.push({
+          username: u.username, displayName: u.displayName,
+          avatar: u.avatar, avatarColor: u.avatarColor,
+          status: u.status, lastSeen: u.lastSeen
+        });
+      });
+      socket.emit('contacts:list', contacts);
+    } catch (e) { console.error('Contacts list error:', e); }
+  });
+
+  // ==================== FULL SYNC ====================
+  socket.on('user:sync-all', async () => {
+    const user = onlineUsers.get(socket.id);
+    if (!user) return;
+    try {
+      const dms = dbAll(`SELECT * FROM rooms WHERE type = 'direct'`);
+      const userDms = dms.filter(r => {
+        const members = parseJsonField(r.members, []);
+        return members.includes(user.username);
+      });
+      const allMessages = [];
+      userDms.forEach(r => {
+        const msgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC`, [r.roomId]);
+        allMessages.push(...msgs.map(formatMessageRow));
+      });
+      const channels = dbAll(`SELECT * FROM channels`);
+      const userChannels = channels.filter(c => {
+        const subs = parseJsonField(c.subscribers, []);
+        return subs.includes(user.username);
+      });
+      userChannels.forEach(c => {
+        const msgs = dbAll(`SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC`, ['ch-' + c.channelId]);
+        allMessages.push(...msgs.map(formatMessageRow));
+      });
+      const favs = dbAll(`SELECT * FROM favorites WHERE username = ? ORDER BY timestamp DESC LIMIT 200`, [user.username]);
+      const contacts = [];
+      const contactNames = new Set();
+      userDms.forEach(r => {
+        const members = parseJsonField(r.members, []);
+        members.forEach(m => { if (m !== user.username) contactNames.add(m); });
+      });
+      contactNames.forEach(name => {
+        const u = dbGet(`SELECT * FROM users WHERE username = ?`, [name]);
+        if (u) contacts.push({
+          username: u.username, displayName: u.displayName,
+          avatar: u.avatar, avatarColor: u.avatarColor,
+          status: u.status, lastSeen: u.lastSeen
+        });
+      });
+      socket.emit('user:synced', {
+        dms: userDms.map(formatRoomRow),
+        channels: userChannels.map(c => ({
+          channelId: c.channelId, name: c.name, description: c.description,
+          type: c.type, admin: c.admin,
+          subscribers: parseJsonField(c.subscribers, []),
+          avatar: c.avatar, createdAt: c.createdAt
+        })),
+        messages: allMessages,
+        favorites: favs.map(f => ({
+          id: f.id, messageId: f.messageId,
+          type: f.type, content: f.content,
+          file: parseJsonField(f.file), room: f.room,
+          sender: parseJsonField(f.sender), timestamp: f.timestamp
+        })),
+        contacts
+      });
+    } catch (e) { console.error('Sync all error:', e); }
   });
 
   socket.on('poll:create', async (data) => {

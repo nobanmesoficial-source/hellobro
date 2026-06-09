@@ -79,6 +79,11 @@ module.exports = function registerFeatures(io, db, ctx) {
         if (mobileSocket) {
           mobileSocket.emit('qr:confirmed', { sessionId: data.sessionId });
         }
+        // Login the web user via QR
+        const dbUser = dbGet(`SELECT * FROM users WHERE username = ?`, [session.username]);
+        if (dbUser) {
+          proceedLogin(socket, dbUser);
+        }
         socket.emit('qr:done', { username: session.username, sessionId: data.sessionId });
       } catch (err) { console.error('QR confirm error:', err); }
     });
